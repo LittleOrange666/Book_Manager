@@ -79,7 +79,7 @@ class BookIndex(Resource):
     @api.expect(book_put_input)
     @api.marshal_with(book_put_output)
     def put(self):
-        args = book_post_input.parse_args()
+        args = book_put_input.parse_args()
         input_admin_key = args.get('admin_key', "")
         if constants.admin_key and input_admin_key != constants.admin_key:
             return {"message": "Invalid or missing admin key"}, 403

@@ -1,5 +1,6 @@
 import os
 import re
+import secrets
 import time
 
 import docker
@@ -136,6 +137,15 @@ def create_temp_qbittorrent_container(new_password):
 
 
 if __name__ == "__main__":
-    # Specify new password
-    custom_password = "adminmeow"
+    print("Starting qBittorrent Web UI password setup...")
+    os.makedirs("data/config", exist_ok=True)
+    custom_password = secrets.token_urlsafe(16)
+    admin_key = secrets.token_urlsafe(16)
+    with open(".env", "w") as f:
+        f.write(f"WEBUI_PASSWORD={custom_password}\n")
+        f.write(f"BOOK_PATH=./books\n")
+        f.write(f"ADMIN_KEY=./books\n")
     create_temp_qbittorrent_container(custom_password)
+    print(f"Setup complete. New password: {custom_password}")
+    print("Starting server")
+    os.system("docker compose up -d")
