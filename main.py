@@ -3,6 +3,7 @@ import shutil
 import threading
 
 from gunicorn.app.base import BaseApplication
+from loguru import logger
 
 from modules import server, datas, constants, route, api, downloader
 
@@ -36,6 +37,12 @@ def main():
             path = constants.book_path / bad.dirname
             if path.exists() and path.is_dir():
                 shutil.rmtree(path)
+            hash_val = bad.torrent_hash
+            if hash_val:
+                try:
+                    downloader.qbt_client.torrents_delete(hashes=hash_val)
+                except Exception as e:
+                    logger.error(f"Error deleting uncompleted torrent for {bad.title} - {bad.uid}: {e}")
             datas.db.session.delete(bad)
         datas.db.session.commit()
     threading.Thread(target=downloader.background_worker, daemon=True).start()

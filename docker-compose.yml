@@ -11,7 +11,27 @@ services:
       - ./data/config:/config
       - ./books:/downloads
     ports:
-      - 6881:6881
-      - 6881:6881/udp
-      - 8082:8082
+      - "8082:8082"
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8082/" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+  book_manager:
+    image: littleorange666/book_manager:1.0.0
+    depends_on:
+      qbittorrent:
+        condition: service_healthy
+    environment:
+      - SERVER_PORT=5000
+      - WEBUI_HOST=qbittorrent
+      - WEBUI_PORT=8082
+      - WEBUI_USERNAME=admin
+      - WEBUI_PASSWORD=adminmeow
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data/server:/app/data
+      - ./books:/app/books

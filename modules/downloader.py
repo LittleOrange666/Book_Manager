@@ -10,10 +10,10 @@ from loguru import logger
 from . import datas, constants, server
 
 conn_info = {
-    "host": os.environ.get("QBITTORRENT_HOST", "localhost"),
-    "port": int(os.environ.get("QBITTORRENT_PORT", "8082")),
-    "username": os.environ.get("QBITTORRENT_USER", "admin"),
-    "password": os.environ.get("QBITTORRENT_PASS", "adminmeow")
+    "host": os.environ.get("WEBUI_HOST", "localhost"),
+    "port": int(os.environ.get("WEBUI_PORT", "8082")),
+    "username": os.environ.get("WEBUI_USER", "admin"),
+    "password": os.environ.get("WEBUI_PASS", "adminmeow")
 }
 qbt_client = qbittorrentapi.Client(**conn_info)
 
