@@ -1,6 +1,10 @@
-Flask
+Flask~=2.3.2
 Flask-APScheduler
 Flask-Cors
+flask_sqlalchemy
+flask_restx
 requests
 torrentool
-torrentp
+libtorrent
+gunicorn~=21.2.0
+qbittorrent-api
