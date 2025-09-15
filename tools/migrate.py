@@ -35,7 +35,7 @@ def main():
         }
         out.append(data)
     print(f"Loaded {len(out)} books to migrate.")
-    url = f"http://localhost:5000/api/book"
+    url = f"http://localhost:6756/api/book"
     session = requests.Session()
     for data in tqdm.tqdm(out):
         resp = session.put(url, data=data)

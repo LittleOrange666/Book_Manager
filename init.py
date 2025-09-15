@@ -1,3 +1,4 @@
+import copy
 import os
 import re
 import secrets
@@ -5,6 +6,7 @@ import time
 
 import docker
 import requests
+import yaml
 
 
 def extract_temp_password(logs):
@@ -141,10 +143,14 @@ if __name__ == "__main__":
     os.makedirs("data/config", exist_ok=True)
     custom_password = secrets.token_urlsafe(16)
     admin_key = secrets.token_urlsafe(16)
+    token = input("Enter your Cloudflare Tunnel token (or leave blank to skip): ").strip()
     with open(".env", "w") as f:
         f.write(f"WEBUI_PASSWORD={custom_password}\n")
         f.write(f"BOOK_PATH=./books\n")
-        f.write(f"ADMIN_KEY=./books\n")
+        f.write(f"ADMIN_KEY={secrets.token_urlsafe(16)}\n")
+        f.write(f"DB_ROOT_PASSWORD={secrets.token_urlsafe(16)}\n")
+        f.write(f"DB_PASSWORD={secrets.token_urlsafe(16)}\n")
+        f.write(f"TUNNEL_TOKEN={token}\n")
     create_temp_qbittorrent_container(custom_password)
     print(f"Setup complete. New password: {custom_password}")
     print("Starting server")

@@ -8,3 +8,5 @@ bencodepy
 docker
 loguru
 pillow
+pymysql
+psycopg2-binary

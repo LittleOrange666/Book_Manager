@@ -43,6 +43,7 @@ function onEnterView(entries, observer) {
             const img = entry.target;
             img.setAttribute('src', img.dataset.src);
             img.removeAttribute('data-src');
+            img.removeAttribute('style');
             observer.unobserve(img);
             if (img === last_img) add_end();
         }
