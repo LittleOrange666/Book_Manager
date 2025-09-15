@@ -44,6 +44,7 @@ book_get_output = api.model('BookStatus', {
 
 book_delete_input = reqparse.RequestParser()
 book_delete_input.add_argument('uid', type=str, required=True, help='Unique identifier of the book')
+book_delete_input.add_argument('admin_key', type=str, required=False, help='Admin key for authentication')
 
 book_delete_output = api.model('BookRemoveResponse', {
     'message': fields.String(description="Response message")
@@ -129,6 +130,9 @@ class BookIndex(Resource):
     @api.marshal_with(book_delete_output)
     def delete(self):
         args = book_get_input.parse_args()
+        input_admin_key = args.get('admin_key', "")
+        if constants.admin_key and input_admin_key != constants.admin_key:
+            return {"message": "Invalid or missing admin key"}, 403
         uid = args['uid']
         book = datas.Book.query.filter_by(uid=uid, completed=True).first()
         if not book:
