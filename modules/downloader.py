@@ -28,7 +28,7 @@ def init():
     return True
 
 
-def convert_to_ico(input_path, output_path, size=(256, 256)):
+def convert_to_ico(input_path, output_path, size=256):
     img = Image.open(input_path)
     img = img.convert("RGBA")
     img.thumbnail((size, size), Image.LANCZOS)
@@ -87,6 +87,20 @@ def calculate_torrent_hash(torrent_bytes: bytes) -> str:
         raise Exception(f"Failed to calculate torrent hash: {e}")
 
 
+def extract_torrent_title(torrent_bytes):
+    try:
+        torrent_data = bencodepy.decode(torrent_bytes)
+        info = torrent_data.get(b'info', {})
+        title = info.get(b'name')
+        if not title:
+            raise ValueError("Torrent file does not contain a 'name' field.")
+        return title.decode('utf-8')
+    except bencodepy.exceptions.BencodeDecodeError as e:
+        raise ValueError(f"Failed to decode torrent file: {e}")
+    except Exception as e:
+        raise ValueError(f"Error extracting title: {e}")
+
+
 def start_download(file_content: bytes, title: str, uid: str, dirname: str, source: str):
     old = datas.Book.query.filter_by(uid=uid).first()
     if old:
@@ -106,6 +120,12 @@ def start_download(file_content: bytes, title: str, uid: str, dirname: str, sour
     if res != "Ok.":
         logger.error(f"Failed to add torrent for {title} - {uid}: {res}")
         return
+    if not title:
+        try:
+            title = extract_torrent_title(file_content)
+        except Exception as e:
+            logger.error(f"Failed to extract title from torrent for {uid}: {e}")
+            return
     hash_val = calculate_torrent_hash(file_content)
     if not hash_val:
         logger.error(f"Failed to retrieve torrent hash for {title} - {uid}")

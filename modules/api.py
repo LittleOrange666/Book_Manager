@@ -10,7 +10,7 @@ app = server.app
 api = Api(app, title="Book Manager API", description="API for Book Manager", doc="/api-docs", prefix="/api")
 
 book_post_input = reqparse.RequestParser()
-book_post_input.add_argument('title', type=str, required=True, help='Title of the book')
+book_post_input.add_argument('title', type=str, required=False, help='Title of the book')
 book_post_input.add_argument('uid', type=str, required=True, help='Unique identifier of the book')
 book_post_input.add_argument('source', type=str, required=False, help='Source of the book')
 book_post_input.add_argument('file', type=FileStorage, location='files', required=True, help='File content of the book')
@@ -68,7 +68,7 @@ class BookIndex(Resource):
         dirname = args['uid'] + "_" + uuid.uuid4().hex
         downloader.start_download(
             file_content=args['file'].read(),
-            title=args['title'],
+            title=args.get('title', ""),
             uid=args['uid'],
             dirname=dirname,
             source=args.get('source', "")

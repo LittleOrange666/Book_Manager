@@ -1,6 +1,7 @@
 Flask
 flask-sqlalchemy
 flask-restx
+flask-cors
 requests
 gunicorn
 qbittorrent-api
