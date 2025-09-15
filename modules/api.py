@@ -1,3 +1,4 @@
+import shutil
 import uuid
 
 from flask_restx import Api, Resource, reqparse, fields
@@ -27,7 +28,7 @@ book_put_input.add_argument('source', type=str, required=False, help='Source of 
 book_put_input.add_argument('dirname', type=str, required=True, help='dirname of the book')
 book_put_input.add_argument('admin_key', type=str, required=False, help='Admin key for authentication')
 
-book_put_output = api.model('BookCreationResponse', {
+book_put_output = api.model('BookMigrateResponse', {
     'message': fields.String(description="Response message")
 })
 
@@ -39,6 +40,13 @@ book_get_output = api.model('BookStatus', {
     'source': fields.String(description="Book source"),
     'dirname': fields.String(description="Book dirname"),
     'files': fields.List(fields.String, description="List of image files")
+})
+
+book_delete_input = reqparse.RequestParser()
+book_delete_input.add_argument('uid', type=str, required=True, help='Unique identifier of the book')
+
+book_delete_output = api.model('BookRemoveResponse', {
+    'message': fields.String(description="Response message")
 })
 
 index_get_input = reqparse.RequestParser()
@@ -115,6 +123,22 @@ class BookIndex(Resource):
             "dirname": book.dirname,
             "files": fns
         }, 200
+
+    @api.doc("remove_book")
+    @api.expect(book_delete_input)
+    @api.marshal_with(book_delete_output)
+    def delete(self):
+        args = book_get_input.parse_args()
+        uid = args['uid']
+        book = datas.Book.query.filter_by(uid=uid, completed=True).first()
+        if not book:
+            return {"message": "Book not found"}, 404
+        path = constants.book_path / book.dirname
+        if path.exists() and path.is_dir():
+            shutil.rmtree(path)
+        datas.db.session.delete(book)
+        datas.db.session.commit()
+        return {"message": "Book removed successfully"}, 200
 
 
 @api.route("/index")

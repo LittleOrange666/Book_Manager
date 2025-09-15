@@ -16,7 +16,7 @@
     const min_pages = 15; // random will skip books that less than [min_pages] pages
     const lang_code = "29963"; // key to filter the language of books, chinese = 29963, english = 12227, japanese = 6346
     const random_buffer = 10;
-    const admin_key = "VzE-VhvRipH0Vk6QQ3rvgQ";
+    const admin_key = "your_admin_key"; // admin key of downloader
     function pure(s){
         while (s.indexOf("[")!=-1){
             let i = s.indexOf("[");
