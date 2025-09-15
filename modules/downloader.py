@@ -6,6 +6,7 @@ import time
 import bencodepy
 import qbittorrentapi
 from loguru import logger
+from PIL import Image
 
 from . import datas, constants, server
 
@@ -27,6 +28,18 @@ def init():
     return True
 
 
+def convert_to_ico(input_path, output_path, size=(256, 256)):
+    img = Image.open(input_path)
+    img = img.convert("RGBA")
+    img.thumbnail((size, size), Image.LANCZOS)
+    canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    x = (size - img.width) // 2
+    y = (size - img.height) // 2
+    canvas.paste(img, (x, y), img)
+    canvas.save(output_path, format="ICO")
+    logger.debug(f"created ico file from {input_path!r} to {output_path!r}")
+
+
 def resolve(dbsession, uid):
     info = dbsession.query(datas.Book).filter_by(uid=uid).first()
     info.completed = True
@@ -39,8 +52,8 @@ def resolve(dbsession, uid):
         files = [f for f in path.iterdir() if f.suffix[1:].lower() in constants.exts]
         files.sort(key=lambda x: x.stem)
         if files:
-            info.icon_file = files[0].name
-            logger.debug(f"Icon file of {info.title} - {uid} found: {info.icon_file}")
+            icon_file = files[0].name
+            convert_to_ico(path / icon_file, path / "icon.ico")
     logger.info(f"Complete downloading {info.title} - {uid}")
     dbsession.add(info)
 

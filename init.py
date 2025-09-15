@@ -14,6 +14,7 @@ def extract_temp_password(logs):
         return match.group(1)
     return None
 
+
 def change_qbittorrent_password(ip, port, username, temp_password, new_password):
     """Change qBittorrent Web UI password via HTTP requests."""
     session = requests.Session()
@@ -39,6 +40,7 @@ def change_qbittorrent_password(ip, port, username, temp_password, new_password)
 
     print("Password changed successfully.")
     session.get(f"http://{ip}:{port}/api/v2/auth/logout")
+
 
 def create_temp_qbittorrent_container(new_password):
     """Create a temporary qBittorrent container, extract temp password, and change it."""
@@ -131,6 +133,7 @@ def create_temp_qbittorrent_container(new_password):
             print("Cleaned up temporary container.")
         except docker.errors.NotFound:
             pass
+
 
 if __name__ == "__main__":
     # Specify new password

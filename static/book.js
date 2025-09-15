@@ -1,0 +1,158 @@
+function isMobileDevice() {
+    const ua = navigator.userAgent;
+    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const isSmallScreen = window.innerWidth <= 768;
+    const isMobileUA = /Mobi|Android|iPhone|iPad|iPod|Phone/i.test(ua);
+    return (isMobileUA && hasTouch) || (isSmallScreen && hasTouch);
+}
+
+function main() {
+    let mobile = isMobileDevice();
+
+    if (!mobile) {
+        const base_zoom = Math.max(Math.floor(window.devicePixelRatio || 1), 1);
+
+        function updateLayout() {
+            const zoom = (window.devicePixelRatio || 1) / base_zoom;
+            const contentPercent = zoom * 30;
+            const contentWidth = Math.min(100, Math.max(10, contentPercent));
+            const marginPercent = (100 - contentWidth) / 2;
+            const mainContent = document.querySelector('#main_area');
+            mainContent.style["margin-left"] = `${marginPercent}%`;
+            mainContent.style["margin-right"] = `${marginPercent}%`;
+        }
+
+        updateLayout();
+
+        window.addEventListener('resize', updateLayout);
+    }
+    $('#BackTop').click(function () {
+        $body.scrollTop(0);
+    });
+    $(window).scroll(function () {
+        if ($(this).scrollTop() > 300) {
+            $('#BackTop').fadeIn(222);
+        } else {
+            $('#BackTop').stop().fadeOut(222);
+        }
+    }).scroll();
+    var hash = location.hash;
+    let page_cnt = document.querySelectorAll('img').length;
+    $("#page").text("0".repeat(Math.floor(Math.log10(page_cnt))) + "1/" + page_cnt);
+    if (hash) update_page();
+
+    function update_page() {
+        let s = location.hash;
+        if (s) {
+            s = s.substr(1, s.indexOf("_") - 1);
+            $("#page").text(s + "/" + page_cnt);
+        }
+    }
+
+    var cur = null;
+
+    function onEnterView(entries, observer) {
+        for (let entry of entries) {
+            if (entry.isIntersecting && entry.intersectionRatio > 0.3) {
+                cur = entry.target;
+                history.replaceState({}, "", "#" + entry.target.id);
+                update_page();
+                return;
+            }
+        }
+    }
+
+    const watcher = new IntersectionObserver(onEnterView, {
+        threshold: [0.0, 0.25, 0.5, 0.75, 1.0],
+    });
+    var q = [];
+
+    function action() {
+        let img = q.shift();
+
+        function cur() {
+            let w = Math.floor(1000 * (page_cnt - q.length) / page_cnt);
+            $("#loading").text("Loading..." + (Math.floor(w / 10)) + "." + (w % 10) + "%")
+            if (hash && ("#" + img.id) == hash) {
+                var target_top = $(hash).offset().top;
+                $body.scrollTop(target_top);
+                hash = null;
+            }
+            if (q.length) {
+                window.setTimeout(function () {
+                    action();
+                }, 1);
+            } else {
+                $("#loading").css("display", "none");
+            }
+            window.setTimeout(function () {
+                watcher.observe(img);
+            }, 1);
+        }
+
+        img.onload = cur;
+        img.setAttribute('src', img.dataset.src);
+        if (img.complete) cur();
+    }
+
+    function add(o) {
+        q.push(o);
+        if (q.length == 1) window.setTimeout(function () {
+            action();
+        }, 1);
+    }
+
+    for (let o of document.querySelectorAll('img')) add(o);
+    var $body = (window.opera) ? (document.compatMode == "CSS1Compat" ? $('html') : $('body')) : $('html,body');
+    var lock = false;
+    $body.keypress(function (event) {
+        event.preventDefault();
+        lock = true;
+        let code = event.code;
+        if (cur) {
+            if (code === "Space" || code === "ArrowRight" || code === "ArrowDown" || code === "PageDown" || code === "KeyS" || code === "KeyD") {
+                let t = $(cur).next();
+                if (t[0]) {
+                    cur = t[0];
+                    history.replaceState({}, "", "#" + cur.id);
+                    var target_top = t.offset().top;
+                    $body.scrollTop(target_top);
+                }
+            }
+            if (code === "ArrowLeft" || code === "ArrowUp" || code === "PageUp" || code === "KeyW" || code === "KeyA") {
+                let t = $(cur).prev();
+                if (t[0]) {
+                    cur = t[0];
+                    history.replaceState({}, "", "#" + cur.id);
+                    var target_top = t.offset().top;
+                    $body.scrollTop(target_top);
+                }
+            }
+        }
+        return false;
+    });
+    update_page();
+}
+
+let book_uid = location.pathname.split("/").pop();
+
+$.get("/api/book?uid=" + book_uid, function (data, status) {
+    if (!data["message"]) {
+        document.title = data["title"];
+        let source = data["source"];
+        let files = data["files"];
+        let dirname = data["dirname"];
+        let area = $("#main_area");
+        for (let file of files) {
+            let img = $("<img class='img lazy' id='" + file.replaceAll(".","_") + "' data-src='/image/" + dirname + "/" + file + "'>");
+            area.append(img);
+        }
+        if (source) {
+            let e = $('<p class="source"><a href="'+source+'" class="source" target="_blank">Source</a></p><p class="source"></p>');
+            area.append(e);
+        }
+        main();
+    } else {
+        alert("Error: " + data["message"]);
+    }
+})

@@ -1,13 +1,10 @@
 Flask
-Flask-APScheduler
-Flask-Cors
 flask-sqlalchemy
 flask-restx
 requests
-torrentool
-libtorrent
 gunicorn
 qbittorrent-api
 bencodepy
 docker
 loguru
+pillow

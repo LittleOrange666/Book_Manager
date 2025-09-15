@@ -45,6 +45,7 @@ def main():
                     logger.error(f"Error deleting uncompleted torrent for {bad.title} - {bad.uid}: {e}")
             datas.db.session.delete(bad)
         datas.db.session.commit()
+        api.init()
     threading.Thread(target=downloader.background_worker, daemon=True).start()
     port = os.environ.get('SERVER_PORT', '5000')
     options = {
