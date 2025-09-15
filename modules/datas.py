@@ -1,6 +1,5 @@
 import os
 from contextlib import contextmanager
-from pathlib import Path
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import sessionmaker
@@ -48,6 +47,7 @@ class Book(db.Model):
     completed = db.Column(db.Boolean, default=True)
     icon_file = db.Column(db.String(20), nullable=True)
     source = db.Column(db.String(100), nullable=True)
+    torrent_hash = db.Column(db.String(40), nullable=True)
 
 
 @contextmanager

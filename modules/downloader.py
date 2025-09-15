@@ -1,101 +1,19 @@
-import asyncio
+import hashlib
+import os
 import shutil
-import threading
 import time
-from pathlib import Path
-from loguru import logger
+
+import bencodepy
 import qbittorrentapi
+from loguru import logger
 
-from . import datas, constants
-
-"""
-session = lt.session()
-_tasks = {}
-_tasks_lock = threading.Lock()
-
-
-def add_task(handle, uid):
-    with _tasks_lock:
-        _tasks[uid] = handle
-
-
-def remove_task(uid):
-    with _tasks_lock:
-        if uid in _tasks:
-            del _tasks[uid]
-
-
-def resolve(dbsession, uid):
-    info = dbsession.query(datas.Book).filter_by(uid=uid).first()
-    info.completed = True
-    path = constants.book_path / info.dirname
-    if path.exists() and path.is_dir():
-        files = [f for f in path.glob() if f.suffix[1:].lower() in constants.exts]
-        files.sort(key=lambda x: x.stem)
-        if files:
-            info.icon_file = files[0].name
-            logger.debug(f"Icon file of {info.title} - {uid} found: {info.icon_file}")
-    logger.info(f"Complete downloading {info.title} - {uid}")
-    dbsession.add(info)
-
-
-def background_worker():
-    while True:
-        uids = []
-        with _tasks_lock:
-            for uid, handle in list(_tasks.items()):
-                if handle.is_seed():
-                    uids.append(uid)
-        with _tasks_lock:
-            for uid in uids:
-                if uid in _tasks:
-                    del _tasks[uid]
-        with datas.SessionContext() as dbsession:
-            for uid in uids:
-                resolve(dbsession, uid)
-        time.sleep(10)
-
-
-def do_download(torrent_file, save_path, uid):
-    torrent = TorrentDownloader(torrent_file, save_path)
-
-    def on_complete():
-        with datas.SessionContext() as dbsession:
-            resolve(dbsession, uid)
-
-    asyncio.run(torrent.start_download())
-
-
-def start_download(file_content: bytes, title: str, uid: str, dirname: str, source: str):
-    tmpfile = constants.data_path / "torrent" / f"{uid}.torrent"
-    tmpfile.parent.mkdir(parents=True, exist_ok=True)
-    with tmpfile.open("wb") as f:
-        f.write(file_content)
-    old = datas.Book.query.filter_by(uid=uid).first()
-    if old:
-        path = constants.book_path / old.dirname
-        if path.exists() and path.is_dir():
-            logger.info(f"Removing old one {old.title} - {uid}")
-            shutil.rmtree(path)
-        datas.db.session.delete(old)
-        datas.db.session.flush()
-    logger.info(f"Start downloading {title} - {uid}")
-    params = {
-        'save_path': str(constants.book_path / dirname),
-    }
-    info = lt.torrent_info(str(tmpfile))
-    handle = session.add_torrent({'ti': info, **params})
-    add_task(handle, uid)
-    dat = datas.Book(uid=uid, title=title, dirname=dirname, completed=False, source=source)
-    datas.db.session.add(dat)
-    datas.db.session.commit()
-"""
+from . import datas, constants, server
 
 conn_info = {
-    "host": "localhost",
-    "port": 8082,
-    "username": "admin",
-    "password": "adminmeow"
+    "host": os.environ.get("QBITTORRENT_HOST", "localhost"),
+    "port": int(os.environ.get("QBITTORRENT_PORT", "8082")),
+    "username": os.environ.get("QBITTORRENT_USER", "admin"),
+    "password": os.environ.get("QBITTORRENT_PASS", "adminmeow")
 }
 qbt_client = qbittorrentapi.Client(**conn_info)
 
@@ -109,8 +27,77 @@ def init():
     return True
 
 
+def resolve(dbsession, uid):
+    info = dbsession.query(datas.Book).filter_by(uid=uid).first()
+    info.completed = True
+    path = constants.book_path / info.dirname
+    if path.exists() and path.is_dir():
+        inner_dir = list(path.iterdir())[0]
+        for f in inner_dir.iterdir():
+            shutil.move(str(f), str(path / f.name))
+        inner_dir.rmdir()
+        files = [f for f in path.iterdir() if f.suffix[1:].lower() in constants.exts]
+        files.sort(key=lambda x: x.stem)
+        if files:
+            info.icon_file = files[0].name
+            logger.debug(f"Icon file of {info.title} - {uid} found: {info.icon_file}")
+    logger.info(f"Complete downloading {info.title} - {uid}")
+    dbsession.add(info)
+
+
+def background_worker():
+    with server.app.app_context():
+        while True:
+            with datas.SessionContext() as dbsession:
+                uids = []
+                for book in dbsession.query(datas.Book).filter_by(completed=False).all():
+                    try:
+                        torrent = qbt_client.torrents_info(hashes=book.torrent_hash)
+                        if torrent and torrent[0].state in ['uploading', 'pausedUP', 'queuedUP', 'stalledUP',
+                                                            'checkingUP']:
+                            qbt_client.torrents_delete(hashes=book.torrent_hash)
+                            uids.append(book.uid)
+                    except Exception as e:
+                        logger.error(f"Error checking torrent status for {book.title} - {book.uid}: {e}")
+                for uid in uids:
+                    resolve(dbsession, uid)
+            time.sleep(10)
+
+
+def calculate_torrent_hash(torrent_bytes: bytes) -> str:
+    try:
+        torrent_data = bencodepy.decode(torrent_bytes)
+        info_data = bencodepy.encode(torrent_data[b'info'])
+        info_hash = hashlib.sha1(info_data).hexdigest().upper()
+        return info_hash
+    except Exception as e:
+        raise Exception(f"Failed to calculate torrent hash: {e}")
+
+
 def start_download(file_content: bytes, title: str, uid: str, dirname: str, source: str):
-    qbt_client.torrents_add(torrent_files=file_content, save_path=str(constants.inner_book_path / dirname))
-    dat = datas.Book(uid=uid, title=title, dirname=dirname, completed=False, source=source)
+    old = datas.Book.query.filter_by(uid=uid).first()
+    if old:
+        if old.completed:
+            path = constants.book_path / old.dirname
+            if path.exists() and path.is_dir():
+                logger.info(f"Removing old one {old.title} - {uid}")
+                shutil.rmtree(path)
+        else:
+            try:
+                qbt_client.torrents_delete(delete_files=True, hashes=old.torrent_hash)
+            except Exception as e:
+                logger.error(f"Error deleting old torrent for {old.title} - {uid}: {e}")
+        datas.db.session.delete(old)
+        datas.db.session.flush()
+    res = qbt_client.torrents_add(torrent_files=file_content, save_path=str(constants.inner_book_path / dirname))
+    if res != "Ok.":
+        logger.error(f"Failed to add torrent for {title} - {uid}: {res}")
+        return
+    hash_val = calculate_torrent_hash(file_content)
+    if not hash_val:
+        logger.error(f"Failed to retrieve torrent hash for {title} - {uid}")
+        return
+    logger.debug(f"Torrent hash for {title} - {uid}: {hash_val}")
+    dat = datas.Book(uid=uid, title=title, dirname=dirname, completed=False, source=source, torrent_hash=hash_val)
     datas.db.session.add(dat)
     datas.db.session.commit()

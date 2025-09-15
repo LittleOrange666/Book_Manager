@@ -1,5 +1,6 @@
 import os
 import shutil
+import threading
 
 from gunicorn.app.base import BaseApplication
 
@@ -37,6 +38,7 @@ def main():
                 shutil.rmtree(path)
             datas.db.session.delete(bad)
         datas.db.session.commit()
+    threading.Thread(target=downloader.background_worker, daemon=True).start()
     port = os.environ.get('SERVER_PORT', '5000')
     options = {
         'bind': '%s:%s' % ('[::]', str(port)),

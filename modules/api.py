@@ -1,8 +1,6 @@
 import uuid
 
-from flask import request
 from flask_restx import Api, Resource, reqparse
-from loguru import logger
 from werkzeug.datastructures import FileStorage
 
 from . import server, downloader
