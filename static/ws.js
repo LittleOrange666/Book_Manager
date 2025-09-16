@@ -1,5 +1,5 @@
-const CACHE_NAME = 'v1.2.0';
-const ASSETS_TO_CACHE = ['/', '/book.css', '/book.js', '/favicon.ico', '/index.css', '/index.js', '/main.js', '/manifest.json', '/robots.txt'];
+const CACHE_NAME = 'v1.2.3';
+const ASSETS_TO_CACHE = ['/', '/book.css', '/book.js', '/favicon.ico', '/home.png', '/index.css', '/index.js', '/main.js', '/manifest.json', '/robots.txt'];
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE))

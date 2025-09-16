@@ -4,12 +4,14 @@
     width: 100%;
     justify-content: center;
     background-color: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
 }
 
 .white_text {
     color: rgba(255, 255, 255, 0.5);
     text-align: center;
-    margin-bottom: 0px;
+    margin-bottom: 0;
     font-size: 40px;
 }
 
@@ -70,4 +72,33 @@
 	display: block;
 	margin:0 auto;
 	width:100%;
+}
+
+#home-link {
+    display: inline-block;
+    margin-left: 16px;
+    padding: 6px 16px;
+    border-radius: 20px;
+    text-decoration: none; !important;
+    position: absolute;
+    left: 16px;
+    font-size: 40px; !important;
+    height: 50px;
+    color: rgba(255, 255, 255, 0.5); !important;
+    -webkit-text-decoration: none; /* Safari 專用 */
+}
+#page, #loading {
+    margin: 2px 0;
+}
+#center-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+#home-img {
+    width: 40px;
+    height: 40px;
+    vertical-align: middle;
+    margin-right: 8px;
 }

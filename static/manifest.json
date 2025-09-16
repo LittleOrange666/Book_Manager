@@ -1,10 +1,10 @@
 {
   "name": "Book Reader",
-  "short_name": "BookPWA",
+  "short_name": "Book",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#317EFB",
+  "theme_color": "#404040",
   "icons": [
     {
       "src": "/favicon.ico",

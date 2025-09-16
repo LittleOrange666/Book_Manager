@@ -94,7 +94,7 @@ function main() {
         }, 1);
     }
 
-    for (let o of document.querySelectorAll('img')) add(o);
+    for (let o of document.querySelectorAll('.img')) add(o);
     var $body = (window.opera) ? (document.compatMode == "CSS1Compat" ? $('html') : $('body')) : $('html,body');
     var lock = false;
     $body.keypress(function (event) {
