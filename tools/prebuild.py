@@ -31,7 +31,7 @@ if __name__ == "__main__":
             arr.append(f"/{f}")
     a = "[" + ", ".join(repr(s) for s in arr) + "]"
     txt = f"const CACHE_NAME = '{version}';\nconst ASSETS_TO_CACHE = {a};\n"+template
-    with open("static/ws.js", "w", encoding="utf-8") as f:
+    with open("static/sw.js", "w", encoding="utf-8") as f:
         f.write(txt)
     print("Service worker prebuilt successfully.")
 
