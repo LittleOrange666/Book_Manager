@@ -5,6 +5,12 @@ function isMobileDevice() {
     const isMobileUA = /Mobi|Android|iPhone|iPad|iPod|Phone/i.test(ua);
     return (isMobileUA && hasTouch) || (isSmallScreen && hasTouch);
 }
+function isRunningStandalone() {
+  return (
+    window.navigator.standalone === true ||
+    window.matchMedia('(display-mode: standalone)').matches
+  );
+}
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js')
     .then(() => console.log('Service Worker registered'))

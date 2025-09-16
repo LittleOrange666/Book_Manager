@@ -17,6 +17,8 @@ function main() {
         updateLayout();
 
         window.addEventListener('resize', updateLayout);
+    }else if (isRunningStandalone()){
+        document.querySelector("#bottom_area").style.paddingBottom="30px";
     }
     $('#BackTop').click(function () {
         $body.scrollTop(0);
