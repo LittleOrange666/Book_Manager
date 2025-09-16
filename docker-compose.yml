@@ -40,6 +40,7 @@ services:
     volumes:
       - ./data:/app/data
       - ${BOOK_PATH}:/app/books
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "python3", "-c", "import http.client; c=http.client.HTTPConnection('localhost', 5000); c.request('GET', '/'); r=c.getresponse(); exit(0) if r.status < 400 else exit(1)"]
       interval: 10s
