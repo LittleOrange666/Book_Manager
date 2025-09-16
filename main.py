@@ -43,7 +43,14 @@ def main():
                     downloader.qbt_client.torrents_delete(hashes=hash_val)
                 except Exception as e:
                     logger.error(f"Error deleting uncompleted torrent for {bad.title} - {bad.uid}: {e}")
+            logger.info(f"Removing uncompleted book record: {bad.title} - {bad.uid}")
             datas.db.session.delete(bad)
+        others = datas.Book.query.filter_by(completed=True).all()
+        for item in others:
+            path = constants.book_path / item.dirname
+            if not path.exists() or not path.is_dir():
+                logger.info(f"Removing missing book record: {item.title} - {item.uid}")
+                datas.db.session.delete(item)
         datas.db.session.commit()
         api.init()
     threading.Thread(target=downloader.background_worker, daemon=True).start()
