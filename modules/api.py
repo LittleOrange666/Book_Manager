@@ -129,7 +129,7 @@ class BookIndex(Resource):
     @api.expect(book_delete_input)
     @api.marshal_with(book_delete_output)
     def delete(self):
-        args = book_get_input.parse_args()
+        args = book_delete_input.parse_args()
         input_admin_key = args.get('admin_key', "")
         if constants.admin_key and input_admin_key != constants.admin_key:
             return {"message": "Invalid or missing admin key"}, 403

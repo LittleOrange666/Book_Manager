@@ -150,3 +150,6 @@ $.get("/api/book?uid=" + book_uid, function (data, status) {
         alert("Error: " + data["message"]);
     }
 })
+$("#home-link").click(function(){
+    window.history.back();
+});

@@ -75,16 +75,18 @@
 }
 
 #home-link {
+    all: unset;
+    cursor: pointer;
     display: inline-block;
     margin-left: 16px;
     padding: 6px 16px;
-    border-radius: 20px;
     text-decoration: none; !important;
     position: absolute;
     left: 16px;
     font-size: 40px; !important;
     height: 50px;
     color: rgba(255, 255, 255, 0.5); !important;
+    background-color: rgba(0, 0, 0, 0);
     -webkit-text-decoration: none; /* Safari 專用 */
 }
 #page, #loading {
