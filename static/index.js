@@ -88,7 +88,7 @@ function onEnterView(entries, observer) {
 
 function onScroll(){
     let pos = window.scrollY;
-    if (up_index>0 && pos < 100){
+    if (up_index>0 && pos < 10){
         add_start(up_index);
     }
 }
