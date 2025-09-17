@@ -63,7 +63,9 @@ def background_worker():
         while True:
             with datas.SessionContext() as dbsession:
                 uids = []
+                cnt = 0
                 for book in dbsession.query(datas.Book).filter_by(completed=False).all():
+                    cnt += 1
                     try:
                         torrent = qbt_client.torrents_info(hashes=book.torrent_hash)
                         if torrent and torrent[0].state in ['uploading', 'pausedUP', 'queuedUP', 'stalledUP',
@@ -73,7 +75,13 @@ def background_worker():
                     except Exception as e:
                         logger.error(f"Error checking torrent status for {book.title} - {book.uid}: {e}")
                 for uid in uids:
+                    cnt -= 1
                     resolve(dbsession, uid)
+                if uids:
+                    if cnt > 0:
+                        logger.info(f"{cnt} downloads remaining.")
+                    else:
+                        logger.info("All downloads completed.")
             time.sleep(10)
 
 

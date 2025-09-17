@@ -2,7 +2,7 @@ let mobile = isMobileDevice();
 let gallery_width = mobile ? "33%" : "16.2%";
 const step = 96;
 let waiting = true;
-let offset = +sessionStorage.getItem("index_offset")||0;
+let offset = +localStorage.getItem("index_offset")||0;
 let waiting_up = offset > 0;
 let end = offset;
 const watcher = new IntersectionObserver(onEnterView);
@@ -17,7 +17,7 @@ function add_end(initial) {
         waiting = false;
         $.get("/api/index", {"begin": "" + (end + 1), "count": "" + (step)}, function (data, status) {
             let HEIGHT = Math.floor(document.body.clientWidth / (mobile ? 3 : 6)) + "px";
-            sessionStorage.setItem("index_offset", end);
+            localStorage.setItem("index_offset", end);
             for (let o of data["books"]) {
                 let e = create_gallery(o);
                 let img = e.find("img");
@@ -33,7 +33,7 @@ function add_end(initial) {
                 waiting = true;
                 end = 0;
                 offset = 0;
-                sessionStorage.setItem("index_offset", 0);
+                localStorage.setItem("index_offset", 0);
                 add_end();
             }
         });
@@ -63,7 +63,7 @@ function add_start(end_pos) {
             if (begin > 0) {
                 waiting_up = true;
             }
-            sessionStorage.setItem("index_offset", begin);
+            localStorage.setItem("index_offset", begin);
         });
     }
 }
