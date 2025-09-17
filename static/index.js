@@ -1,6 +1,6 @@
 let mobile = isMobileDevice();
 let gallery_width = mobile ? "33%" : "16.2%";
-const step = 100;
+const step = 96;
 let waiting = true;
 let end = 0;
 const watcher = new IntersectionObserver(onEnterView);

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'v1.2.11';
+const CACHE_NAME = 'v1.2.12';
 const ASSETS_TO_CACHE = ['/', '/book.css', '/book.js', '/index.css', '/index.js', '/main.js', '/manifest.json', '/robots.txt', '/img/book_192.png', '/img/book_512.png', '/img/favicon.ico', '/img/home.png'];
 self.addEventListener('install', (e) => {
   e.waitUntil(
