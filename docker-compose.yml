@@ -10,6 +10,8 @@ services:
     volumes:
       - ./data/config:/config
       - ${BOOK_PATH}:/downloads
+    tmpfs:
+      - /tmp
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8082/" ]
@@ -18,7 +20,7 @@ services:
       retries: 5
       start_period: 40s
   book_manager:
-    image: littleorange666/book_manager:1.2.12
+    image: littleorange666/book_manager:1.3.1
     depends_on:
       qbittorrent:
         condition: service_healthy
@@ -40,6 +42,8 @@ services:
     volumes:
       - ./data:/app/data
       - ${BOOK_PATH}:/app/books
+    tmpfs:
+      - /tmp
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python3", "-c", "import http.client; c=http.client.HTTPConnection('localhost', 5000); c.request('GET', '/'); r=c.getresponse(); exit(0) if r.status < 400 else exit(1)"]

@@ -2,33 +2,77 @@ let mobile = isMobileDevice();
 let gallery_width = mobile ? "33%" : "16.2%";
 const step = 96;
 let waiting = true;
-let end = 0;
+let offset = +sessionStorage.getItem("index_offset")||0;
+let waiting_up = offset > 0;
+let end = offset;
 const watcher = new IntersectionObserver(onEnterView);
+let up_index = offset;
 
-function add_end() {
+function create_gallery(o) {
+    return $("<div class='gallery' style='width:" + gallery_width + "'><a href='/books/" + o["uid"] + "'><div><img class='lazy' data-src='/icon/" + o["dirname"] + "'></div><p>" + o["title"] + "</p></a></div>");
+}
+
+function add_end(initial) {
     if (waiting) {
         waiting = false;
         $.get("/api/index", {"begin": "" + (end + 1), "count": "" + (step)}, function (data, status) {
             let HEIGHT = Math.floor(document.body.clientWidth / (mobile ? 3 : 6)) + "px";
+            sessionStorage.setItem("index_offset", end);
             for (let o of data["books"]) {
-                let e = $("<div class='gallery' style='width:" + gallery_width + "'><a href='/books/" + o["uid"] + "'><div><img class='lazy' data-src='/icon/" + o["dirname"] + "'></div><p>" + o["title"] + "</p></a></div>");
+                let e = create_gallery(o);
                 let img = e.find("img");
+                e.data("pos", end);
                 img.css("height", HEIGHT);
                 watcher.observe(img[0]);
                 $("#main_area").append(e);
+                end++;
             }
             if (data["length"]) {
-                end += step;
                 waiting = true;
+            }else if (initial){
+                waiting = true;
+                end = 0;
+                offset = 0;
+                sessionStorage.setItem("index_offset", 0);
+                add_end();
             }
         });
     }
 }
 
-add_end();
+function add_start(end_pos) {
+    if (waiting_up && end_pos > 0) {
+        waiting_up = false;
+        let begin = Math.max(0, end_pos - step);
+        $.get("/api/index", {"begin": "" + (begin + 1), "count": "" + (end_pos - begin)}, function (data, status) {
+            let HEIGHT = Math.floor(document.body.clientWidth / (mobile ? 3 : 6)) + "px";
+            let old_begin = document.querySelector(".gallery");
+            let pos = end_pos - 1;
+            for (let i = data["books"].length - 1; i >= 0; i--) {
+                let o = data["books"][i];
+                let e = create_gallery(o);
+                let img = e.find("img");
+                e.data("pos", pos);
+                img.css("height", HEIGHT);
+                watcher.observe(img[0]);
+                $("#main_area").prepend(e);
+                pos--;
+            }
+            up_index = begin;
+            scrollTo(0, old_begin.offsetTop);
+            if (begin > 0) {
+                waiting_up = true;
+            }
+            sessionStorage.setItem("index_offset", begin);
+        });
+    }
+}
+
+add_end(true);
 
 function onEnterView(entries, observer) {
     const imgs = document.querySelectorAll('img');
+    const first_img = imgs[0];
     const last_img = imgs[imgs.length - 1];
     for (let entry of entries) {
         if (entry.isIntersecting) {
@@ -41,3 +85,11 @@ function onEnterView(entries, observer) {
         }
     }
 }
+
+function onScroll(){
+    let pos = window.scrollY;
+    if (up_index>0 && pos < 100){
+        add_start(up_index);
+    }
+}
+window.addEventListener('scroll', onScroll);
