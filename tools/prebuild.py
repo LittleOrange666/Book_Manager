@@ -26,9 +26,10 @@ if __name__ == "__main__":
     version = sys.argv[1]
     print(f"Prebuilding service worker for version {version}")
     arr = ["/"]
-    for f in os.listdir("static"):
-        if f != "ws.js":
-            arr.append(f"/{f}")
+    for dirname, _, files in os.walk("static"):
+        for f in files:
+            if f != "sw.js":
+                arr.append(f"{dirname[6:]}/{f}")
     a = "[" + ", ".join(repr(s) for s in arr) + "]"
     txt = f"const CACHE_NAME = '{version}';\nconst ASSETS_TO_CACHE = {a};\n"+template
     with open("static/sw.js", "w", encoding="utf-8") as f:
