@@ -53,6 +53,8 @@ def main():
                 datas.db.session.delete(item)
         datas.db.session.commit()
         api.init()
+        for last in downloader.qbt_client.torrents.info.all():
+            last.delete()
     threading.Thread(target=downloader.background_worker, daemon=True).start()
     port = os.environ.get('SERVER_PORT', '5000')
     options = {

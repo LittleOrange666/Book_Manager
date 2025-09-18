@@ -42,7 +42,7 @@ class Book(db.Model):
     __tablename__ = 'books'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     uid = db.Column(db.String(100), unique=True, nullable=False)
-    title = db.Column(db.String(200), nullable=False)
+    title = db.Column(db.String(500), nullable=False)
     dirname = db.Column(db.String(200), nullable=False)
     completed = db.Column(db.Boolean, default=True)
     source = db.Column(db.String(100), nullable=True)

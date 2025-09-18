@@ -124,6 +124,7 @@ def start_download(file_content: bytes, title: str, uid: str, dirname: str, sour
                 logger.error(f"Error deleting old torrent for {old.title} - {uid}: {e}")
         datas.db.session.delete(old)
         datas.db.session.flush()
+    hash_val = calculate_torrent_hash(file_content)
     res = qbt_client.torrents_add(torrent_files=file_content, save_path=str(constants.inner_book_path / dirname))
     if res != "Ok.":
         logger.error(f"Failed to add torrent for {title} - {uid}: {res}")
@@ -134,7 +135,6 @@ def start_download(file_content: bytes, title: str, uid: str, dirname: str, sour
         except Exception as e:
             logger.error(f"Failed to extract title from torrent for {uid}: {e}")
             return
-    hash_val = calculate_torrent_hash(file_content)
     if not hash_val:
         logger.error(f"Failed to retrieve torrent hash for {title} - {uid}")
         return
