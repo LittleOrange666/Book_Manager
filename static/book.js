@@ -17,8 +17,8 @@ function main() {
         updateLayout();
 
         window.addEventListener('resize', updateLayout);
-    }else if (isRunningStandalone()){
-        document.querySelector("#bottom_area").style.paddingBottom="30px";
+    } else if (isRunningStandalone()) {
+        document.querySelector("#bottom_area").style.paddingBottom = "30px";
     }
     $('#BackTop').click(function () {
         $body.scrollTop(0);
@@ -130,26 +130,31 @@ function main() {
 
 let book_uid = location.pathname.split("/").pop();
 
-$.get("/api/book?uid=" + book_uid, function (data, status) {
-    if (!data["message"]) {
-        document.title = data["title"];
-        let source = data["source"];
-        let files = data["files"];
-        let dirname = data["dirname"];
-        let area = $("#main_area");
-        for (let file of files) {
-            let img = $("<img class='img lazy' id='" + file.replaceAll(".","_") + "' data-src='/image/" + dirname + "/" + file + "'>");
-            area.append(img);
+fetch("/api/book?uid=" + book_uid)
+    .then(response => response.json())
+    .then(data => {
+        if (!data["message"]) {
+            document.title = data["title"];
+            let source = data["source"];
+            let files = data["files"];
+            let dirname = data["dirname"];
+            let area = $("#main_area");
+            for (let file of files) {
+                let img = $("<img class='img lazy' id='" + file.replaceAll(".", "_") + "' data-src='/image/" + dirname + "/" + file + "'>");
+                area.append(img);
+            }
+            if (source) {
+                let e = $('<p class="source"><a href="' + source + '" class="source" target="_blank">Source</a></p><p class="source"></p>');
+                area.append(e);
+            }
+            main();
+        } else {
+            alert("Error: " + data["message"]);
         }
-        if (source) {
-            let e = $('<p class="source"><a href="'+source+'" class="source" target="_blank">Source</a></p><p class="source"></p>');
-            area.append(e);
-        }
-        main();
-    } else {
-        alert("Error: " + data["message"]);
-    }
-})
-$("#home-link").click(function(){
+    })
+    .catch(error => {
+        alert("Error: " + error);
+    });
+$("#home-link").click(function () {
     window.history.back();
 });

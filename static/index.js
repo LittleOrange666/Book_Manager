@@ -21,6 +21,10 @@ function add_end(initial) {
                     window.location.href = "/login";
                     return Promise.reject("Unauthorized");
                 }
+                if (!response.ok) {
+                    window.alert(`錯誤：${response.status} ${response.statusText}`);
+                    return Promise.reject(`Error: ${response.status}`);
+                }
                 return response.json();
             })
             .then(data => {
@@ -44,6 +48,11 @@ function add_end(initial) {
                     localStorage.setItem("index_offset", 0);
                     add_end();
                 }
+            })
+            .catch(err => {
+                if (err !== "Unauthorized") {
+                    window.alert("無法取得資料，請稍後再試。\n" + err);
+                }
             });
     }
 }
@@ -57,6 +66,10 @@ function add_start(end_pos) {
                 if (response.status === 401) {
                     window.location.href = "/login";
                     return Promise.reject("Unauthorized");
+                }
+                if (!response.ok) {
+                    window.alert(`錯誤：${response.status} ${response.statusText}`);
+                    return Promise.reject(`Error: ${response.status}`);
                 }
                 return response.json();
             })
@@ -80,6 +93,11 @@ function add_start(end_pos) {
                     waiting_up = true;
                 }
                 localStorage.setItem("index_offset", begin);
+            })
+            .catch(err => {
+                if (err !== "Unauthorized") {
+                    window.alert("無法取得資料，請稍後再試。\n" + err);
+                }
             });
     }
 }
