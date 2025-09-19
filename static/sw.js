@@ -1,5 +1,5 @@
-const CACHE_NAME = 'v1.3.4';
-const ASSETS_TO_CACHE = ['/', '/book.css', '/book.js', '/index.css', '/index.js', '/main.js', '/manifest.json', '/robots.txt', '/img/book_192.png', '/img/book_512.png', '/img/favicon.ico', '/img/home.png'];
+const CACHE_NAME = 'v1.4.0';
+const ASSETS_TO_CACHE = ['/', '/book.css', '/book.js', '/bootstrap5.1.1.bundle.min.js', '/bootstrap5.1.1.min.css', '/index.css', '/index.js', '/jquery-3.7.0.min.js', '/login.js', '/main.js', '/manifest.json', '/robots.txt', '/signup.js', '/img/book_192.png', '/img/book_512.png', '/img/favicon.ico', '/img/home.png'];
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE))

@@ -2,7 +2,7 @@ let mobile = isMobileDevice();
 let gallery_width = mobile ? "33%" : "16.2%";
 const step = 96;
 let waiting = true;
-let offset = +localStorage.getItem("index_offset")||0;
+let offset = +localStorage.getItem("index_offset") || 0;
 let waiting_up = offset > 0;
 let end = offset;
 const watcher = new IntersectionObserver(onEnterView);
@@ -15,28 +15,36 @@ function create_gallery(o) {
 function add_end(initial) {
     if (waiting) {
         waiting = false;
-        $.get("/api/index", {"begin": "" + (end + 1), "count": "" + (step)}, function (data, status) {
-            let HEIGHT = Math.floor(document.body.clientWidth / (mobile ? 3 : 6)) + "px";
-            localStorage.setItem("index_offset", end);
-            for (let o of data["books"]) {
-                let e = create_gallery(o);
-                let img = e.find("img");
-                e.data("pos", end);
-                img.css("height", HEIGHT);
-                watcher.observe(img[0]);
-                $("#main_area").append(e);
-                end++;
-            }
-            if (data["length"]) {
-                waiting = true;
-            }else if (initial){
-                waiting = true;
-                end = 0;
-                offset = 0;
-                localStorage.setItem("index_offset", 0);
-                add_end();
-            }
-        });
+        fetch(`/api/index?begin=${end + 1}&count=${step}`)
+            .then(response => {
+                if (response.status === 401) {
+                    window.location.href = "/login";
+                    return Promise.reject("Unauthorized");
+                }
+                return response.json();
+            })
+            .then(data => {
+                let HEIGHT = Math.floor(document.body.clientWidth / (mobile ? 3 : 6)) + "px";
+                localStorage.setItem("index_offset", end);
+                for (let o of data["books"]) {
+                    let e = create_gallery(o);
+                    let img = e.find("img");
+                    e.data("pos", end);
+                    img.css("height", HEIGHT);
+                    watcher.observe(img[0]);
+                    $("#main_area").append(e);
+                    end++;
+                }
+                if (data["length"]) {
+                    waiting = true;
+                } else if (initial) {
+                    waiting = true;
+                    end = 0;
+                    offset = 0;
+                    localStorage.setItem("index_offset", 0);
+                    add_end();
+                }
+            });
     }
 }
 
@@ -44,27 +52,35 @@ function add_start(end_pos) {
     if (waiting_up && end_pos > 0) {
         waiting_up = false;
         let begin = Math.max(0, end_pos - step);
-        $.get("/api/index", {"begin": "" + (begin + 1), "count": "" + (end_pos - begin)}, function (data, status) {
-            let HEIGHT = Math.floor(document.body.clientWidth / (mobile ? 3 : 6)) + "px";
-            let old_begin = document.querySelector(".gallery");
-            let pos = end_pos - 1;
-            for (let i = data["books"].length - 1; i >= 0; i--) {
-                let o = data["books"][i];
-                let e = create_gallery(o);
-                let img = e.find("img");
-                e.data("pos", pos);
-                img.css("height", HEIGHT);
-                watcher.observe(img[0]);
-                $("#main_area").prepend(e);
-                pos--;
-            }
-            up_index = begin;
-            scrollTo(0, old_begin.offsetTop);
-            if (begin > 0) {
-                waiting_up = true;
-            }
-            localStorage.setItem("index_offset", begin);
-        });
+        fetch(`/api/index?begin=${begin + 1}&count=${end_pos - begin}`)
+            .then(response => {
+                if (response.status === 401) {
+                    window.location.href = "/login";
+                    return Promise.reject("Unauthorized");
+                }
+                return response.json();
+            })
+            .then(data => {
+                let HEIGHT = Math.floor(document.body.clientWidth / (mobile ? 3 : 6)) + "px";
+                let old_begin = document.querySelector(".gallery");
+                let pos = end_pos - 1;
+                for (let i = data["books"].length - 1; i >= 0; i--) {
+                    let o = data["books"][i];
+                    let e = create_gallery(o)[0];
+                    let img = e.querySelector("img");
+                    e.dataset.pos = pos;
+                    img.style.height = HEIGHT;
+                    watcher.observe(img);
+                    document.getElementById("main_area").prepend(e);
+                    pos--;
+                }
+                up_index = begin;
+                window.scrollTo(0, old_begin.offsetTop);
+                if (begin > 0) {
+                    waiting_up = true;
+                }
+                localStorage.setItem("index_offset", begin);
+            });
     }
 }
 
@@ -86,10 +102,11 @@ function onEnterView(entries, observer) {
     }
 }
 
-function onScroll(){
+function onScroll() {
     let pos = window.scrollY;
-    if (up_index>0 && pos < 10){
+    if (up_index > 0 && pos < 10) {
         add_start(up_index);
     }
 }
+
 window.addEventListener('scroll', onScroll);

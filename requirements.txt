@@ -2,6 +2,7 @@ Flask
 flask-sqlalchemy
 flask-restx
 flask-cors
+flask-login
 requests
 gunicorn
 qbittorrent-api
@@ -11,3 +12,4 @@ loguru
 pillow
 pymysql
 psycopg2-binary
+redis

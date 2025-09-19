@@ -5,7 +5,7 @@ import threading
 from gunicorn.app.base import BaseApplication
 from loguru import logger
 
-from modules import server, datas, constants, route, api, downloader
+from modules import server, datas, constants, route, api, downloader, login
 
 app = server.app
 
@@ -52,7 +52,9 @@ def main():
                 logger.info(f"Removing missing book record: {item.title} - {item.uid}")
                 datas.db.session.delete(item)
         datas.db.session.commit()
+        login.init()
         api.init()
+        route.init()
         for last in downloader.qbt_client.torrents.info.all():
             last.delete()
     threading.Thread(target=downloader.background_worker, daemon=True).start()

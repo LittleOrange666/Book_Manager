@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Signup{% endblock %}
+
+{% block head %}{% endblock %}
+
+{% block alter %}
+<div class="container">
+    <div class="mb-3 col-5 offset-2">
+        <label for="user_id" class="form-label">User Id</label>
+        <input type="text" class="form-control" id="user_id" name="user_id" placeholder="user id" required>
+    </div>
+    <div class="mb-3 col-5 offset-2">
+        <label for="password" class="form-label">Password</label>
+        <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
+    </div>
+    <div class="mb-3 col-5 offset-2">
+        <button class="btn btn-primary" id="do_login_btn">註冊</button>
+    </div>
+</div>
+<script src="/signup.js"></script>
+{% endblock %}
