@@ -2,9 +2,15 @@ body {
     background-color: #404040;
 }
 
+#main_area {
+    display: inline-block;
+    justify-content: center;
+}
+
 .gallery {
     display: inline-block;
     margin: 0 auto;
+    overflow: hidden;
 }
 
 .gallery div {
@@ -15,6 +21,11 @@ body {
     content: "";
     display: block;
     padding-bottom: 100%;
+}
+
+.gallery p {
+      word-break: break-word;
+      overflow-wrap: break-word;
 }
 
 a {

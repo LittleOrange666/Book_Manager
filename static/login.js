@@ -1,6 +1,5 @@
-let login_btn = document.getElementById("do_login_btn");
-
-login_btn.addEventListener("click", function() {
+document.getElementById('login_form').addEventListener('submit', function(e) {
+    e.preventDefault();
     let user = document.getElementById("user_id").value;
     let pwd = document.getElementById("password").value;
     let form = new FormData();

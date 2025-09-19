@@ -6,18 +6,20 @@
 
 {% block alter %}
 <div class="container">
-    <div class="mb-3 col-5 offset-2">
-        <label for="user_id" class="form-label">User Id</label>
-        <input type="text" class="form-control" id="user_id" name="user_id" placeholder="user id" required>
-    </div>
-    <div class="mb-3 col-5 offset-2">
-        <label for="password" class="form-label">Password</label>
-        <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
-    </div>
-    <div class="mb-3 col-5 offset-2">
-        <button class="btn btn-primary" id="do_login_btn">登入</button>
-        <a href="/signup" class="btn btn-secondary">註冊</a>
-    </div>
+    <form id="login_form">
+        <div class="mb-3 col-5 offset-2">
+            <label for="user_id" class="form-label">User Id</label>
+            <input type="text" class="form-control" id="user_id" name="user_id" placeholder="user id" required>
+        </div>
+        <div class="mb-3 col-5 offset-2">
+            <label for="password" class="form-label">Password</label>
+            <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
+        </div>
+        <div class="mb-3 col-5 offset-2">
+            <button type="submit" class="btn btn-primary" id="do_login_btn">登入</button>
+            <a href="/signup" class="btn btn-secondary">註冊</a>
+        </div>
+    </form>
 </div>
 <script src="/login.js"></script>
 {% endblock %}
