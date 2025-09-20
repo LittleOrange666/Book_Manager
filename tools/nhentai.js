@@ -14,7 +14,7 @@
     const min_pages = 15; // random will skip books that less than [min_pages] pages
     const lang_code = "29963"; // key to filter the language of books, chinese = 29963, english = 12227, japanese = 6346
     const random_buffer = 10;
-    const admin_key = "your_admin_key"; // admin key of downloader
+    const admin_key = "-huEvD_FetWkyGqkhnOldg"; // admin key of downloader
     function pure(s){
         while (s.indexOf("[")!=-1){
             let i = s.indexOf("[");
@@ -297,7 +297,7 @@
                 delete sessionStorage.simply;
                 document.querySelector("#related-container").remove();
             }
-            let pc = Number(document.querySelectorAll("#tags div span.name")[7].textContent);
+            let pc = Number(document.querySelectorAll("#tags div a[href*='page'] span.name")[0].textContent);
             if (pc<min_pages) applyrandom();
         }
     }else{

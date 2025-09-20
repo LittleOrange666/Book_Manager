@@ -15,7 +15,7 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1)
 
 redis_host = os.environ.get("REDIS_HOST", "localhost")
 
-app.config['SECRET_KEY'] = secrets.token_urlsafe(33)
+app.config['SECRET_KEY'] = os.environ.get("FLASK_SECRET_KEY", secrets.token_urlsafe(33))
 
 app.config['SESSION_TYPE'] = "redis"
 app.config["SESSION_COOKIE_NAME"] = "BookManagerSession"
@@ -23,4 +23,4 @@ app.config['SESSION_USE_SIGNER'] = True
 app.config['SESSION_REDIS'] = redis.StrictRedis(host=redis_host)
 app.config['SESSION_KEY_PREFIX'] = 'session:'
 app.config['SESSION_PERMANENT'] = True
-app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=12)
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)

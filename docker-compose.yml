@@ -25,7 +25,7 @@ services:
       retries: 5
       start_period: 10s
   book_manager:
-    image: littleorange666/book_manager:1.4.4
+    image: littleorange666/book_manager:1.4.5
     depends_on:
       qbittorrent:
         condition: service_healthy
@@ -42,6 +42,7 @@ services:
       - MYSQL_USER=bookmanageruser
       - MYSQL_PASSWORD=${DB_PASSWORD}
       - MYSQL_HOST=mariadb:3306
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
     ports:
       - "6756:5000"
     volumes:
