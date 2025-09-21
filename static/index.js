@@ -19,6 +19,9 @@ document.getElementById("custom-menu-action1").addEventListener('click', () => {
     }
     hideMenu();
 });
+document.getElementById("custom-menu-action2").addEventListener('click', () => {
+    location.reload();
+});
 const [bind_element,hideMenu] = register_menu(menu_element, before_open);
 
 function create_gallery(o) {

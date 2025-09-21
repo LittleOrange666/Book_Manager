@@ -41,14 +41,22 @@ function register_menu(menu_element, before_open) {
             showMenu(e.pageX, e.pageY, e.target);
         });
         let touchTimer;
+        let longPressTriggered = false;
         target.addEventListener('touchstart', e => {
-            e.preventDefault();
+            longPressTriggered = false;
             touchTimer = setTimeout(() => {
+                e.preventDefault();
+                longPressTriggered = true;
                 const touch = e.touches[0];
                 showMenu(touch.pageX, touch.pageY, e.target);
             }, 500);
         });
-        target.addEventListener('touchend', () => clearTimeout(touchTimer));
+        target.addEventListener('touchend', (e) => {
+            clearTimeout(touchTimer);
+            if (longPressTriggered) {
+                e.preventDefault();
+            }
+        });
     }
     return [bind_element,hideMenu];
 }
