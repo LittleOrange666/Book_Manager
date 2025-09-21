@@ -139,6 +139,11 @@ def start_download(file_content: bytes, title: str, uid: str, dirname: str, sour
         logger.error(f"Failed to retrieve torrent hash for {title} - {uid}")
         return
     logger.debug(f"Torrent hash for {title} - {uid}: {hash_val}")
+    if constants.seed_valid:
+        filepath = constants.seed_path / f"{uid}.torrent"
+        with open(filepath, "wb") as f:
+            f.write(file_content)
+        logger.debug(f"Saved torrent file to {filepath}")
     dat = datas.Book(uid=uid, title=title, dirname=dirname, completed=False, source=source, torrent_hash=hash_val)
     datas.db.session.add(dat)
     datas.db.session.commit()
