@@ -45,3 +45,42 @@ img {
     margin: 0 auto;
     width: 100%;
 }
+
+.custom-menu {
+  position: absolute;
+  display: none;
+  min-width: 160px;
+  background: var(--menu-bg, #fff);
+  color: var(--menu-fg, #000);
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  font-size: 14px;
+  z-index: 9999;
+}
+
+.custom-menu button {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.custom-menu button:hover {
+  background: rgba(0,0,0,.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  .custom-menu {
+    --menu-bg: #333;
+    --menu-fg: #fff;
+    border-color: #555;
+  }
+  .custom-menu button:hover {
+    background: rgba(255,255,255,.1);
+  }
+}

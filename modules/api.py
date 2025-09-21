@@ -74,7 +74,8 @@ index_get_output = api.model('BookIndex', {
     'books': fields.List(fields.Nested(api.model('BookItem', {
         'title': fields.String(description="Book title"),
         'uid': fields.String(description="Unique identifier of the book"),
-        'dirname': fields.String(description="Directory name of the book")
+        'dirname': fields.String(description="Directory name of the book"),
+        'source': fields.String(description="Source of the book")
     })), description="List of books"),
     "length": fields.Integer(description="Number of books returned")
 })
@@ -201,7 +202,8 @@ class Index(Resource):
             result.append({
                 "title": book.title,
                 "uid": book.uid,
-                "dirname": book.dirname
+                "dirname": book.dirname,
+                "source": book.source
             })
         return {"books": result, "length": len(result)}, 200
 

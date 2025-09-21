@@ -38,17 +38,17 @@ function register_menu(menu_element, before_open) {
     function bind_element(target) {
         target.addEventListener('contextmenu', e => {
             e.preventDefault();
-            showMenu(e.pageX, e.pageY);
+            showMenu(e.pageX, e.pageY, e.target);
         });
         let touchTimer;
         target.addEventListener('touchstart', e => {
             e.preventDefault();
             touchTimer = setTimeout(() => {
                 const touch = e.touches[0];
-                showMenu(touch.pageX, touch.pageY);
+                showMenu(touch.pageX, touch.pageY, e.target);
             }, 500);
         });
         target.addEventListener('touchend', () => clearTimeout(touchTimer));
     }
-    return bind_element;
+    return [bind_element,hideMenu];
 }

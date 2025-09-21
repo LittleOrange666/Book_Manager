@@ -7,9 +7,44 @@ let waiting_up = offset > 0;
 let end = offset;
 const watcher = new IntersectionObserver(onEnterView);
 let up_index = offset;
+const menu_element = document.getElementById('custom-menu');
+let target_source = "#";
+function before_open(e) {
+    let gallery = e.closest('.gallery');
+    target_source = gallery.dataset.source || "#";
+}
+document.getElementById("custom-menu-action1").addEventListener('click', () => {
+    if (target_source && target_source !== "#") {
+        window.open(target_source, '_blank');
+    }
+    hideMenu();
+});
+const [bind_element,hideMenu] = register_menu(menu_element, before_open);
 
 function create_gallery(o) {
-    return $("<div class='gallery' style='width:" + gallery_width + "'><a href='/books/" + o["uid"] + "'><div><img class='lazy' data-src='/icon/" + o["dirname"] + "'></div><p>" + o["title"] + "</p></a></div>");
+    const div = document.createElement('div');
+    div.className = 'gallery';
+    div.style.width = gallery_width;
+    div.dataset.source = o['source'];
+
+    const a = document.createElement('a');
+    a.href = '/books/' + o['uid'];
+
+    const innerDiv = document.createElement('div');
+    const img = document.createElement('img');
+    img.className = 'lazy';
+    img.setAttribute('data-src', '/icon/' + o['dirname']);
+    innerDiv.appendChild(img);
+
+    const p = document.createElement('p');
+    p.textContent = o['title'];
+
+    a.appendChild(innerDiv);
+    a.appendChild(p);
+    div.appendChild(a);
+
+    bind_element(div);
+    return div;
 }
 
 function add_end(initial) {
@@ -32,11 +67,11 @@ function add_end(initial) {
                 localStorage.setItem("index_offset", end);
                 for (let o of data["books"]) {
                     let e = create_gallery(o);
-                    let img = e.find("img");
-                    e.data("pos", end);
-                    img.css("height", HEIGHT);
-                    watcher.observe(img[0]);
-                    $("#main_area").append(e);
+                    let img = e.querySelector("img");
+                    e.dataset.pos = end;
+                    img.style.height = HEIGHT;
+                    watcher.observe(img);
+                    document.getElementById("main_area").appendChild(e);
                     end++;
                 }
                 if (data["length"]) {
@@ -79,7 +114,7 @@ function add_start(end_pos) {
                 let pos = end_pos - 1;
                 for (let i = data["books"].length - 1; i >= 0; i--) {
                     let o = data["books"][i];
-                    let e = create_gallery(o)[0];
+                    let e = create_gallery(o);
                     let img = e.querySelector("img");
                     e.dataset.pos = pos;
                     img.style.height = HEIGHT;
