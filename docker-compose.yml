@@ -25,13 +25,16 @@ services:
       retries: 5
       start_period: 10s
   book_manager:
-    image: littleorange666/book_manager:1.4.9
+    image: littleorange666/book_manager:1.4.10
     depends_on:
       qbittorrent:
         condition: service_healthy
       mariadb:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
+      - TZ=Asia/Taipei
       - SERVER_PORT=5000
       - WEBUI_HOST=qbittorrent
       - WEBUI_PORT=8082
@@ -45,6 +48,7 @@ services:
       - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
       - SEED_PATH=/app/seeds
       - BOOK_PATH=/app/books
+      - REDIS_HOST=redis
     ports:
       - "6756:5000"
     volumes:
@@ -79,6 +83,16 @@ services:
       start_period: 10s
       interval: 10s
       timeout: 5s
+      retries: 5
+  redis:
+    image: redis:4.0-alpine
+    restart: unless-stopped
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 3s
       retries: 5
   cloudflared:
     image: cloudflare/cloudflared:latest

@@ -1,5 +1,14 @@
 function main() {
     let mobile = isMobileDevice();
+    const menu_element = document.getElementById('custom-menu');
+    function before_open(e) {
+        // placeholder
+    }
+    document.getElementById("custom-menu-action1").addEventListener('click', () => {
+        location.reload();
+    });
+    const [bind_element,hideMenu] = register_menu(menu_element, before_open);
+    bind_element(document.querySelector("#main_area"));
 
     if (!mobile) {
         const base_zoom = Math.max(Math.floor(window.devicePixelRatio || 1), 1);
@@ -64,7 +73,10 @@ function main() {
     function action() {
         let img = q.shift();
 
+        let is_error = false;
+
         function cur() {
+            is_error = false;
             let w = Math.floor(1000 * (page_cnt - q.length) / page_cnt);
             $("#loading").text("Loading..." + (Math.floor(w / 10)) + "." + (w % 10) + "%")
             if (hash && ("#" + img.id) == hash) {
@@ -84,8 +96,19 @@ function main() {
             }, 1);
         }
 
-        img.onload = cur;
+        function retry() {
+            if (is_error) {
+                is_error = false;
+                img.setAttribute('src', img.dataset.src + "?r=" + Math.random());
+            }
+        }
+
+        img.addEventListener('load', cur);
+        img.addEventListener('error', function () {
+            is_error = true;
+        });
         img.setAttribute('src', img.dataset.src);
+        img.addEventListener("click", retry);
         if (img.complete) cur();
     }
 
