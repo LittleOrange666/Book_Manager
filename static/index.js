@@ -10,9 +10,11 @@ const watcher2 = new IntersectionObserver(onEnterView2);
 let up_index = offset;
 const menu_element = document.getElementById('custom-menu');
 let target_source = "#";
+let target_uid = "";
 function before_open(e) {
     let gallery = e.closest('.gallery');
     target_source = gallery.dataset.source || "#";
+    target_uid = gallery.dataset.uid || "";
 }
 document.getElementById("custom-menu-action1").addEventListener('click', () => {
     if (target_source && target_source !== "#") {
@@ -23,6 +25,29 @@ document.getElementById("custom-menu-action1").addEventListener('click', () => {
 document.getElementById("custom-menu-action2").addEventListener('click', () => {
     location.reload();
 });
+document.getElementById("custom-menu-action3").addEventListener('click', () => {
+    hideMenu();
+    if(!target_uid) return;
+    let yes = window.confirm("Are you sure to delete this book?\nThis action cannot be undone.");
+    if(!yes) return;
+    let form = new FormData();
+    form.append("uid", target_uid);
+    fetch(`/api/book`, { method: 'DELETE' , body: form})
+        .then(response => {
+            if (!response.ok) {
+                return Promise.reject(`Error: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            window.alert("Result: \n" + (data['message'] || ""));
+            let gallery = document.querySelector(`.gallery[data-uid='${target_uid}']`);
+            if(gallery) gallery.remove();
+        })
+        .catch(err => {
+            window.alert("Failed: \n" + err);
+        });
+});
 const [bind_element,hideMenu] = register_menu(menu_element, before_open);
 
 function create_gallery(o) {
@@ -30,6 +55,7 @@ function create_gallery(o) {
     div.className = 'gallery';
     div.style.width = gallery_width;
     div.dataset.source = o['source'];
+    div.dataset.uid = o['uid'];
 
     const a = document.createElement('a');
     a.href = '/books/' + o['uid'];
