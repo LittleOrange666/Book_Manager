@@ -1,10 +1,16 @@
-function main() {
+function main(data) {
     let mobile = isMobileDevice();
     const menu_element = document.getElementById('custom-menu');
     function before_open(e) {
         // placeholder
     }
     document.getElementById("custom-menu-action1").addEventListener('click', () => {
+        let source = data["source"];
+        if (source) {
+            window.open(source, '_blank');
+        }
+    });
+    document.getElementById("custom-menu-action2").addEventListener('click', () => {
         location.reload();
     });
     const [bind_element,hideMenu] = register_menu(menu_element, before_open);
@@ -170,7 +176,7 @@ fetch("/api/book?uid=" + book_uid)
                 let e = $('<p class="source"><a href="' + source + '" class="source" target="_blank">Source</a></p><p class="source"></p>');
                 area.append(e);
             }
-            main();
+            main(data);
         } else {
             alert("Error: " + data["message"]);
         }
