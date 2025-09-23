@@ -101,6 +101,15 @@ signup_post_output = api.model('SignupResponse', {
 })
 
 
+def check_admin(args):
+    if current_user.is_authenticated and current_user.is_admin:
+        return True
+    input_admin_key = args.get('admin_key', "")
+    if constants.admin_key and input_admin_key != constants.admin_key:
+        return False
+    return True
+
+
 @api.route("/book")
 class BookIndex(Resource):
     @api.doc("create_book")
@@ -108,9 +117,8 @@ class BookIndex(Resource):
     @api.marshal_with(book_post_output)
     def post(self):
         args = book_post_input.parse_args()
-        input_admin_key = args.get('admin_key', "")
-        if constants.admin_key and input_admin_key != constants.admin_key:
-            return {"message": "Invalid or missing admin key"}, 403
+        if not check_admin(args):
+            return {"message": "admin required"}, 403
         dirname = args['uid'] + "_" + uuid.uuid4().hex
         downloader.start_download(
             file_content=args['file'].read(),
@@ -126,9 +134,8 @@ class BookIndex(Resource):
     @api.marshal_with(book_put_output)
     def put(self):
         args = book_put_input.parse_args()
-        input_admin_key = args.get('admin_key', "")
-        if constants.admin_key and input_admin_key != constants.admin_key:
-            return {"message": "Invalid or missing admin key"}, 403
+        if not check_admin(args):
+            return {"message": "admin required"}, 403
         title = args['title']
         uid = args['uid']
         source = args.get('source', "")
@@ -168,9 +175,8 @@ class BookIndex(Resource):
     @api.marshal_with(book_delete_output)
     def delete(self):
         args = book_delete_input.parse_args()
-        input_admin_key = args.get('admin_key', "")
-        if constants.admin_key and input_admin_key != constants.admin_key:
-            return {"message": "Invalid or missing admin key"}, 403
+        if not check_admin(args):
+            return {"message": "admin required"}, 403
         uid = args['uid']
         book = datas.Book.query.filter_by(uid=uid, completed=True).first()
         if not book:

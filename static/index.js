@@ -6,6 +6,7 @@ let offset = +localStorage.getItem("index_offset") || 0;
 let waiting_up = offset > 0;
 let end = offset;
 const watcher = new IntersectionObserver(onEnterView);
+const watcher2 = new IntersectionObserver(onEnterView2);
 let up_index = offset;
 const menu_element = document.getElementById('custom-menu');
 let target_source = "#";
@@ -67,13 +68,14 @@ function add_end(initial) {
             })
             .then(data => {
                 let HEIGHT = Math.floor(document.body.clientWidth / (mobile ? 3 : 6)) + "px";
-                localStorage.setItem("index_offset", end);
+                // localStorage.setItem("index_offset", end);
                 for (let o of data["books"]) {
                     let e = create_gallery(o);
                     let img = e.querySelector("img");
                     e.dataset.pos = end;
                     img.style.height = HEIGHT;
                     watcher.observe(img);
+                    watcher2.observe(e);
                     document.getElementById("main_area").appendChild(e);
                     end++;
                 }
@@ -83,7 +85,6 @@ function add_end(initial) {
                     waiting = true;
                     end = 0;
                     offset = 0;
-                    localStorage.setItem("index_offset", 0);
                     add_end();
                 }
             })
@@ -122,6 +123,7 @@ function add_start(end_pos) {
                     e.dataset.pos = pos;
                     img.style.height = HEIGHT;
                     watcher.observe(img);
+                    watcher2.observe(e);
                     document.getElementById("main_area").prepend(e);
                     pos--;
                 }
@@ -130,7 +132,7 @@ function add_start(end_pos) {
                 if (begin > 0) {
                     waiting_up = true;
                 }
-                localStorage.setItem("index_offset", begin);
+                // localStorage.setItem("index_offset", begin);
             })
             .catch(err => {
                 if (err !== "Unauthorized") {
@@ -156,6 +158,21 @@ function onEnterView(entries, observer) {
             if (img === last_img) add_end();
         }
     }
+}
+
+function onEnterView2(entries, observer) {
+    let res = []
+    for (let entry of entries) {
+        if (entry.isIntersecting) {
+            const e = entry.target;
+            let pos = e.dataset.pos;
+            res.push(+pos);
+        }
+    }
+    if (res.length === 0) return;
+    let mi = Math.min(...res);
+    let val = mi - mi%step;
+    localStorage.setItem("index_offset", val);
 }
 
 function onScroll() {
