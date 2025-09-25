@@ -197,7 +197,7 @@ function onEnterView2(entries, observer) {
     }
     if (res.length === 0) return;
     let mi = Math.min(...res);
-    let val = mi - mi%step;
+    let val = mi - mi%6;
     localStorage.setItem("index_offset", val);
 }
 
