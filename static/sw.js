@@ -1,4 +1,4 @@
-const CACHE_NAME = 'v1.4.15';
+const CACHE_NAME = 'v1.4.16';
 const ASSETS_TO_CACHE = ['/', '/book.css', '/book.js', '/bootstrap5.1.1.bundle.min.js', '/bootstrap5.1.1.min.css', '/index.css', '/index.js', '/jquery-3.7.0.min.js', '/login.js', '/main.js', '/manifest.json', '/robots.txt', '/signup.js', '/img/book_192.png', '/img/book_512.png', '/img/favicon.ico', '/img/home.png'];
 self.addEventListener('install', (e) => {
   e.waitUntil(

@@ -201,10 +201,15 @@ function onEnterView2(entries, observer) {
     localStorage.setItem("index_offset", val);
 }
 
+let init_scroll = false;
+
 function onScroll() {
     let pos = window.scrollY;
-    if (up_index > 0 && pos < 10) {
+    if (up_index > 0 && pos < 10 && init_scroll) {
         add_start(up_index);
+    }
+    if (!init_scroll && pos > 50) {
+        init_scroll = true;
     }
 }
 
