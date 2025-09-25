@@ -44,10 +44,14 @@ function register_menu(menu_element, before_open) {
         let longPressTriggered = false;
         target.addEventListener('touchstart', e => {
             longPressTriggered = false;
+            let startX = e.touches[0].pageX;
+            let startY = e.touches[0].pageY;
             touchTimer = setTimeout(() => {
-                e.preventDefault();
-                longPressTriggered = true;
                 const touch = e.touches[0];
+                let dis = Math.abs(touch.pageX - startX) + Math.abs(touch.pageY - startY);
+                if (dis > 20) return;
+                longPressTriggered = true;
+                e.preventDefault();
                 showMenu(touch.pageX, touch.pageY, e.target);
             }, 500);
         });
