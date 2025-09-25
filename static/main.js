@@ -42,18 +42,25 @@ function register_menu(menu_element, before_open) {
         });
         let touchTimer;
         let longPressTriggered = false;
+        let startX, startY;
         target.addEventListener('touchstart', e => {
             longPressTriggered = false;
-            let startX = e.touches[0].pageX;
-            let startY = e.touches[0].pageY;
+            startX = e.touches[0].pageX;
+            startY = e.touches[0].pageY;
             touchTimer = setTimeout(() => {
                 const touch = e.touches[0];
-                let dis = Math.abs(touch.pageX - startX) + Math.abs(touch.pageY - startY);
-                if (dis > 20) return;
                 longPressTriggered = true;
                 e.preventDefault();
                 showMenu(touch.pageX, touch.pageY, e.target);
             }, 500);
+        });
+        target.addEventListener('touchmove', e => {
+            const touch = e.touches[0];
+            const dx = Math.abs(touch.pageX - startX);
+            const dy = Math.abs(touch.pageY - startY);
+            if (dx > 10 || dy > 10) {
+                clearTimeout(touchTimer);
+            }
         });
         target.addEventListener('touchend', (e) => {
             clearTimeout(touchTimer);
@@ -62,5 +69,6 @@ function register_menu(menu_element, before_open) {
             }
         });
     }
-    return [bind_element,hideMenu];
+
+    return [bind_element, hideMenu];
 }
