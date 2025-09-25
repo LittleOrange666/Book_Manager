@@ -226,7 +226,7 @@ class Login(Resource):
         user = login.try_login(username, password)
         if not user:
             return {"message": "Invalid username or password"}, 403
-        login_user(user)
+        login_user(user, remember=True)
         return {"message": "Login successful"}, 200
 
 

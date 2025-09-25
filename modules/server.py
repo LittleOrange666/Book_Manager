@@ -5,6 +5,7 @@ from datetime import timedelta
 import redis
 from flask import Flask
 from flask_cors import CORS
+from flask_session import Session
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__, static_url_path='', static_folder='../static', template_folder='../templates')
@@ -19,8 +20,14 @@ app.config['SECRET_KEY'] = os.environ.get("FLASK_SECRET_KEY", secrets.token_urls
 
 app.config['SESSION_TYPE'] = "redis"
 app.config["SESSION_COOKIE_NAME"] = "BookManagerSession"
+app.config["SESSION_COOKIE_SECURE"] = True
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config['SESSION_USE_SIGNER'] = True
 app.config['SESSION_REDIS'] = redis.StrictRedis(host=redis_host)
 app.config['SESSION_KEY_PREFIX'] = 'session:'
 app.config['SESSION_PERMANENT'] = True
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
+app.config["REMEMBER_COOKIE_DURATION"] = timedelta(days=30)
+
+Session(app)

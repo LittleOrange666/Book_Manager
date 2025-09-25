@@ -23,7 +23,7 @@ def get_user(username):
 
 
 login_manager = LoginManager(app)
-login_manager.session_protection = None
+login_manager.session_protection = "basic"
 login_manager.login_view = 'login_page'
 
 

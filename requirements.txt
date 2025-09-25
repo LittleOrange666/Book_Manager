@@ -3,6 +3,7 @@ flask-sqlalchemy
 flask-restx
 flask-cors
 flask-login
+flask-session
 requests
 gunicorn
 qbittorrent-api
