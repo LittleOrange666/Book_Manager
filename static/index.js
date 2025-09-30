@@ -187,18 +187,19 @@ function onEnterView(entries, observer) {
         }
     }
 }
-
+let intersecting_pos = new Set();
 function onEnterView2(entries, observer) {
-    let res = []
     for (let entry of entries) {
+        const e = entry.target;
+        let pos = +e.dataset.pos;
         if (entry.isIntersecting) {
-            const e = entry.target;
-            let pos = e.dataset.pos;
-            res.push(+pos);
+            intersecting_pos.add(pos);
+        }else{
+            intersecting_pos.delete(pos);
         }
     }
-    if (res.length === 0) return;
-    let mi = Math.min(...res);
+    if (intersecting_pos.size === 0) return;
+    let mi = Math.min(...intersecting_pos);
     let val = mi - mi%6;
     localStorage.setItem("index_offset", val);
 }
