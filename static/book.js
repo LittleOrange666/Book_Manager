@@ -102,19 +102,9 @@ function main(data) {
             }, 1);
         }
 
-        function retry() {
-            if (is_error) {
-                is_error = false;
-                img.setAttribute('src', img.dataset.src + "?r=" + Math.random());
-            }
-        }
-
         img.addEventListener('load', cur);
-        img.addEventListener('error', function () {
-            is_error = true;
-        });
+        auto_retry(img);
         img.setAttribute('src', img.dataset.src);
-        img.addEventListener("click", retry);
         if (img.complete) cur();
     }
 

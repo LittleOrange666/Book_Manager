@@ -72,3 +72,34 @@ function register_menu(menu_element, before_open) {
 
     return [bind_element, hideMenu];
 }
+
+function auto_retry(img){
+    function handler(){
+        const maxRetries = 3;
+        let retries = parseInt(img.dataset.retries || '0', 10);
+        if (retries < maxRetries) {
+            retries += 1;
+            img.dataset.retries = retries;
+            window.setTimeout(() => {
+                const separator = img.src.includes('?') ? '&' : '?';
+                img.src = img.src.split('?')[0] + `${separator}t=${new Date().getTime()}`;
+            },1500);
+        } else {
+            img.removeEventListener('error', handler);
+        }
+    }
+    let completed = img.complete;
+    if(completed) return;
+    img.addEventListener('error', handler);
+    img.addEventListener('load', ()=>{
+        img.removeEventListener('error', handler);
+        completed = true;
+    });
+    img.addEventListener("click", function (){
+        if (!(completed || img.complete)){
+            img.dataset.retries = '0';
+            img.addEventListener('error', handler);
+            handler();
+        }
+    });
+}

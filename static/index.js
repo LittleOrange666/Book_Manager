@@ -100,6 +100,7 @@ function add_end(initial) {
                     let img = e.querySelector("img");
                     e.dataset.pos = end;
                     img.style.height = HEIGHT;
+                    auto_retry(img);
                     watcher.observe(img);
                     watcher2.observe(e);
                     document.getElementById("main_area").appendChild(e);
@@ -148,6 +149,7 @@ function add_start(end_pos) {
                     let img = e.querySelector("img");
                     e.dataset.pos = pos;
                     img.style.height = HEIGHT;
+                    auto_retry(img);
                     watcher.observe(img);
                     watcher2.observe(e);
                     document.getElementById("main_area").prepend(e);
