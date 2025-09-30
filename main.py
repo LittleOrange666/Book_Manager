@@ -32,8 +32,20 @@ def main():
         return
     with app.app_context():
         datas.db.create_all()
+        login.init()
+        api.init()
+        route.init()
         bads = datas.Book.query.filter_by(completed=False).all()
         for bad in bads:
+            try:
+                torrent = downloader.qbt_client.torrents_info(hashes=bad.torrent_hash)
+                if torrent and torrent[0].state in ['uploading', 'pausedUP', 'queuedUP', 'stalledUP',
+                                                    'checkingUP']:
+                    downloader.qbt_client.torrents_delete(hashes=bad.torrent_hash)
+                    downloader.resolve(datas.db.session, bad.uid)
+                    continue
+            except Exception as e:
+                logger.error(f"Error checking torrent status for {bad.title} - {bad.uid}: {e}")
             path = constants.book_path / bad.dirname
             if path.exists() and path.is_dir():
                 shutil.rmtree(path)
@@ -51,12 +63,9 @@ def main():
             if not path.exists() or not path.is_dir():
                 logger.info(f"Removing missing book record: {item.title} - {item.uid}")
                 datas.db.session.delete(item)
-        datas.db.session.commit()
-        login.init()
-        api.init()
-        route.init()
         for last in downloader.qbt_client.torrents.info.all():
             last.delete()
+        datas.db.session.commit()
     threading.Thread(target=downloader.background_worker, daemon=True).start()
     port = os.environ.get('SERVER_PORT', '5000')
     options = {
