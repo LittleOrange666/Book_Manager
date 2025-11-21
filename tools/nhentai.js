@@ -213,6 +213,19 @@
             }
         }
     }
+    function randompage(){
+        let hr;
+        if(document.querySelector(".last")){
+            hr = document.querySelector(".last").href;
+        }else{
+            let pl = document.querySelectorAll(".page");
+            hr = pl[pl.length-1].href;
+        }
+        let cnt = Number(hr.substring(hr.indexOf("page=")+5));
+        let tp = Math.ceil(cnt*Math.random());
+        sessionStorage.rp = 1;
+        location.href = "?page="+tp;
+    }
     // general
     for(let o of document.querySelectorAll("iframe")){
         o.remove();
@@ -233,6 +246,7 @@
             for(let o of document.querySelectorAll('.gallery[data-tags*="'+lang_code+'"]')) o.isch = 1;
             for(let o of document.querySelectorAll('.gallery')) if(!o.isch)o.remove();
             if (document.querySelectorAll('.gallery').length==0){
+                if (sessionStorage.rp) randompage();
                 if (document.querySelector(".previous")==null) location.href = document.querySelector(".next").href;
                 else if (document.querySelector(".next")==null) location.href = document.querySelector(".previous").href;
                 else if(document.referrer&&document.referrer.startsWith(location.origin+location.pathname)){
@@ -242,6 +256,7 @@
                     if(Math.abs(p-cp)==1) location.search = "?page="+(cp*2-p);
                 }
             }else{
+                if(sessionStorage.rp) delete sessionStorage.rp;
                 if (document.querySelector(".sort")){
                     let l = [];
                     for(let o of document.querySelectorAll(".gallery")){
@@ -263,6 +278,14 @@
                     };
                     d0.appendChild(b0);
                     document.querySelector(".sort").appendChild(d0);
+                    let rp = E("a","page","?");
+                    rp.onclick = function(){
+                        randompage();
+                    };
+                    if (document.querySelector(".pagination")){
+                        let as = document.querySelectorAll(".pagination a");
+                        document.querySelector(".pagination").insertBefore(rp,as[as.length-1].nextSibling);
+                    }
                 }
             }
             for(let o of document.querySelectorAll('.gallery')){
