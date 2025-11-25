@@ -278,6 +278,13 @@
                     };
                     d0.appendChild(b0);
                     document.querySelector(".sort").appendChild(d0);
+                    let d1 = E("div","sort-type");
+                    let b1 = E("a","current","Random Page");
+                    b1.onclick = function(){
+                        randompage();
+                    };
+                    d1.appendChild(b1);
+                    document.querySelector(".sort").appendChild(d1);
                     let rp = E("a","page","?");
                     rp.onclick = function(){
                         randompage();
