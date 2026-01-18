@@ -2,6 +2,7 @@ import hashlib
 import os
 import shutil
 import time
+import traceback
 
 import bencodepy
 import qbittorrentapi
@@ -61,27 +62,30 @@ def resolve(dbsession, uid):
 def background_worker():
     with server.app.app_context():
         while True:
-            with datas.SessionContext() as dbsession:
-                uids = []
-                cnt = 0
-                for book in dbsession.query(datas.Book).filter_by(completed=False).all():
-                    cnt += 1
-                    try:
-                        torrent = qbt_client.torrents_info(hashes=book.torrent_hash)
-                        if torrent and torrent[0].state in ['uploading', 'pausedUP', 'queuedUP', 'stalledUP',
-                                                            'checkingUP']:
-                            qbt_client.torrents_delete(hashes=book.torrent_hash)
-                            uids.append(book.uid)
-                    except Exception as e:
-                        logger.error(f"Error checking torrent status for {book.title} - {book.uid}: {e}")
-                for uid in uids:
-                    cnt -= 1
-                    resolve(dbsession, uid)
-                if uids:
-                    if cnt > 0:
-                        logger.info(f"{cnt} downloads remaining.")
-                    else:
-                        logger.info("All downloads completed.")
+            try:
+                with datas.SessionContext() as dbsession:
+                    uids = []
+                    cnt = 0
+                    for book in dbsession.query(datas.Book).filter_by(completed=False).all():
+                        cnt += 1
+                        try:
+                            torrent = qbt_client.torrents_info(hashes=book.torrent_hash)
+                            if torrent and torrent[0].state in ['uploading', 'pausedUP', 'queuedUP', 'stalledUP',
+                                                                'checkingUP']:
+                                qbt_client.torrents_delete(hashes=book.torrent_hash)
+                                uids.append(book.uid)
+                        except Exception as e:
+                            logger.error(f"Error checking torrent status for {book.title} - {book.uid}: {e}")
+                    for uid in uids:
+                        cnt -= 1
+                        resolve(dbsession, uid)
+                    if uids:
+                        if cnt > 0:
+                            logger.info(f"{cnt} downloads remaining.")
+                        else:
+                            logger.info("All downloads completed.")
+            except Exception as e:
+                traceback.print_exception(e)
             time.sleep(10)
 
 
