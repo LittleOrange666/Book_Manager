@@ -15,7 +15,7 @@
     const min_pages = 15; // random will skip books that less than [min_pages] pages
     const lang_code = 29963; // key to filter the language of books, chinese = 29963, english = 12227, japanese = 6346
     const random_buffer = 10;
-    const admin_key = "c0CpG0g2q2J8W6fMbxzDPg"; // admin key of downloader
+    const admin_key = "<admin key>"; // admin key of downloader
     const originalFetch = window.fetch;
     function is_index(){
         let p = location.pathname;
@@ -87,7 +87,7 @@
         });
     }
     function load_gallery(){
-        document.querySelector("#download").addEventListener("click",function(e){
+        document.querySelector("#download")&&document.querySelector("#download").addEventListener("click",function(e){
             e.preventDefault();
             if(document.querySelector("#favorite span").textContent=="Favorite") document.querySelector("#favorite").click();
             download();
