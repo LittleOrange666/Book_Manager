@@ -100,6 +100,15 @@ signup_post_output = api.model('SignupResponse', {
     'message': fields.String(description="Response message")
 })
 
+book_pull_input = reqparse.RequestParser()
+book_pull_input.add_argument('uid', type=str, required=True, help='Unique identifier of the book', location='form')
+book_pull_input.add_argument('admin_key', type=str, required=False, help='Admin key for authentication',
+                               location='form')
+
+book_pull_output = api.model('BookPullResponse', {
+    'message': fields.String(description="Response message")
+})
+
 
 def check_admin(args):
     if current_user.is_authenticated and current_user.is_admin:
@@ -187,6 +196,31 @@ class BookIndex(Resource):
         datas.db.session.delete(book)
         datas.db.session.commit()
         return {"message": "Book removed successfully"}, 200
+
+@api.route("/book/pull")
+class BookPull(Resource):
+    @api.doc("pull_book")
+    @api.expect(book_pull_input)
+    def post(self):
+        args = book_pull_input.parse_args()
+        if not check_admin(args):
+            return {"message": "admin required"}, 403
+        uid = args['uid']
+        book: datas.Book | None = datas.Book.query.filter_by(uid=uid, completed=True).first()
+        if not book:
+            return {"message": "Book not found"}, 404
+        if not book.completed:
+            return {"message": "Book is not completed yet"}, 400
+        book_title = book.title
+        book_dirname = book.dirname
+        book_source = book.source
+        book_torrent_hash = book.torrent_hash
+        datas.db.session.delete(book)
+        datas.db.session.flush()
+        new_book = datas.Book(uid=uid, title=book_title, dirname=book_dirname, completed=True, source=book_source, torrent_hash=book_torrent_hash)
+        datas.db.session.add(new_book)
+        datas.db.session.commit()
+        return {"message": "Book pulled successfully"}, 200
 
 
 @api.route("/index")

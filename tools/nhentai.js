@@ -93,11 +93,29 @@
             download();
         });
     }
-    function randompage(num_pages){
+    function to_link(link){
+        let a = document.createElement("a");
+        a.href = link;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        const clickEvent = new MouseEvent('click', {
+            view: window,
+            bubbles: true,
+            cancelable: true
+        });
+        a.dispatchEvent(clickEvent);
+        a.remove();
+    }
+    function to_page(page){
+        console.log(page);
         let search = new URLSearchParams(location.search);
         search.set("sort","date");
-        search.set("page", Math.ceil(num_pages*Math.random()));
-        location.search = search.toString();
+        search.set("page", page);
+        console.log(search.toString());
+        to_link("?"+search.toString());
+    }
+    function randompage(num_pages){
+        to_page(Math.ceil(num_pages*Math.random()));
     }
     let prev_page = null;
     function load_index(galleries, page, num_pages){
@@ -120,19 +138,20 @@
             o.appendChild(a);
         }
         if(galleries.length==0){
+            console.log(page, num_pages);
             if(sessionStorage.rp){
                 randompage(num_pages);
             }else if (page==1){
-                document.querySelector(".next").click();
+                to_page(+page+1);
             }else if (page==num_pages){
-                document.querySelector(".previous").click();
+                to_page(+page-1);
             }else if(page<prev_page){
-                document.querySelector(".previous").click();
+                to_page(+page-1);
             }else if (page>prev_page) {
-                document.querySelector(".next").click();
+                to_page(+page+1);
             }
         }else {
-            sessionStorage.rp = 0;
+            delete sessionStorage.rp;
             if (!document.querySelector(".custom-btn-1")){
                 let d1 = E("div","sort-type");
                 let b1 = E("a","current custom-btn-1","Random Page");
@@ -159,7 +178,9 @@
             }
             data.result = nw_arr;
             //console.log(args);
-            let page = Number((new URL(location.href)).searchParams.get("page")||"1");
+            console.log(location.href);
+            console.log(location.origin+args[0]);
+            let page = Number((new URL(location.origin+args[0])).searchParams.get("page")||"1");
             //console.log(page);
             let num_pages = data.num_pages;
             window.setTimeout(load_index.bind(null, nw_arr, page, num_pages), 10);
@@ -173,5 +194,10 @@
         }
         return response;
     };
-
+    window.setTimeout(function(){
+        if(is_index()){
+            let search = new URLSearchParams(location.search);
+            if(!search.get("page")) to_page(1);
+        }
+    },100);
 })();

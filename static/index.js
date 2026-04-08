@@ -48,6 +48,25 @@ document.getElementById("custom-menu-action3").addEventListener('click', () => {
             window.alert("Failed: \n" + err);
         });
 });
+document.getElementById("custom-menu-action4").addEventListener('click', () => {
+    hideMenu();
+    if(!target_uid) return;
+    let form = new FormData();
+    form.append("uid", target_uid);
+    fetch(`/api/book/pull`, { method: 'POST' , body: form})
+        .then(response => {
+            if (!response.ok) {
+                return Promise.reject(`Error: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            window.alert("Result: \n" + (data['message'] || ""));
+        })
+        .catch(err => {
+            window.alert("Failed: \n" + err);
+        });
+});
 const [bind_element,hideMenu] = register_menu(menu_element, before_open);
 
 function create_gallery(o) {
