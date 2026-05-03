@@ -43,27 +43,41 @@
         if (i) r.textContent = i;
         return r;
     }
+    function getCookie(name) {
+        let nameEQ = name + "=";
+        let ca = document.cookie.split(';');
+        for(let i=0; i < ca.length; i++) {
+            let c = ca[i].trim();
+            if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+        }
+        return null;
+    }
+    function getAuthorization(){
+        let token = getCookie("access_token");
+        if (!token){
+            window.alert("Login Required");
+            throw new Error("Login Required;");
+        }
+        return "User " + token;
+    }
     async function new_download(link){
         if (!link) link = location.href;
         if (!link.endsWith("/")) link += "/";
-        let name = link.substring(22,28);
-        let res1 = await fetch(link+"download");
-        if (!res1.ok) {
-            window.alert("Failed to download torrent");
-            return false;
-        }
-        let blob = await res1.blob();
+        let name = link.substring(link.indexOf("/g/")+3,link.indexOf("/",link.indexOf("/g/")+4));
+        let auth = getAuthorization();
+        let api_link = location.origin + "/api/v2/galleries/"+name+"/download?format=torrent"
         let form = new FormData();
         form.append("source", link);
         form.append("admin_key", admin_key);
         form.append("uid","book_"+name);
-        form.append("file", blob, name+".torrent");
-        let res2 = await fetch(downloader+'/api/book', {
+        form.append("auth",auth);
+        form.append("link",api_link);
+        let res2 = await fetch(downloader+'/api/book/prepare', {
             method: "POST",
             body: form
         });
         if (!res2.ok) {
-            window.alert("Failed to upload torrent");
+            window.alert("Failed to upload torrent info");
             return false;
         }
         if (res2.status !== 200) {
@@ -87,11 +101,15 @@
         });
     }
     function load_gallery(){
-        document.querySelector("#download")&&document.querySelector("#download").addEventListener("click",function(e){
-            e.preventDefault();
-            if(document.querySelector("#favorite span").textContent=="Favorite") document.querySelector("#favorite").click();
-            download();
-        });
+        if (document.querySelector("#favorite")){
+            let btn = E("button","btn btn-secondary","DoDownload");
+            document.querySelector("#favorite").parentElement.appendChild(btn);
+            btn.addEventListener("click",function(e){
+                e.preventDefault();
+                if(document.querySelector("#favorite span").textContent=="Favorite") document.querySelector("#favorite").click();
+                download();
+            });
+        }
     }
     function to_link(link){
         let a = document.createElement("a");

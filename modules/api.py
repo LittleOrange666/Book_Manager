@@ -36,6 +36,20 @@ book_post_output = api.model('BookCreationResponse', {
     'message': fields.String(description="Response message")
 })
 
+
+book_prepare_input = reqparse.RequestParser()
+book_prepare_input.add_argument('link', type=str, required=True, help='Api link to download', location='form')
+book_prepare_input.add_argument('auth', type=str, required=True, help='Auth info to download', location='form')
+book_prepare_input.add_argument('title', type=str, required=False, help='Title of the book', location='form')
+book_prepare_input.add_argument('uid', type=str, required=True, help='Unique identifier of the book', location='form')
+book_prepare_input.add_argument('source', type=str, required=False, help='Source of the book', location='form')
+book_prepare_input.add_argument('admin_key', type=str, required=False, help='Admin key for authentication',
+                             location='form')
+
+book_prepare_output = api.model('BookPrepareResponse', {
+    'message': fields.String(description="Response message")
+})
+
 book_put_input = reqparse.RequestParser()
 book_put_input.add_argument('title', type=str, required=True, help='Title of the book', location='form')
 book_put_input.add_argument('uid', type=str, required=True, help='Unique identifier of the book', location='form')
@@ -117,6 +131,27 @@ def check_admin(args):
     if constants.admin_key and input_admin_key != constants.admin_key:
         return False
     return True
+
+
+@api.route("/book/prepare")
+class BookPrepare(Resource):
+    @api.doc("create_book")
+    @api.expect(book_prepare_input)
+    @api.marshal_with(book_prepare_output)
+    def post(self):
+        args = book_prepare_input.parse_args()
+        if not check_admin(args):
+            return {"message": "admin required"}, 403
+        dirname = args['uid'] + "_" + uuid.uuid4().hex
+        downloader.prepare_download(
+            title=args.get('title', ""),
+            uid=args['uid'],
+            dirname=dirname,
+            source=args.get('source', ""),
+            auth=args["auth"],
+            link=args["link"]
+        )
+        return {"message": "Book download prepared"}, 200
 
 
 @api.route("/book")

@@ -58,6 +58,18 @@ class User(db.Model):
     info = db.Column(db.JSON, nullable=True)
 
 
+class Download(db.Model):
+    __tablename__ = 'downloads'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    uid = db.Column(db.String(100), unique=True, nullable=False)
+    title = db.Column(db.String(500), nullable=False)
+    dirname = db.Column(db.String(200), nullable=False)
+    source = db.Column(db.String(100), nullable=True)
+    auth = db.Column(db.String(200), nullable=False)
+    link = db.Column(db.String(200), nullable=False)
+    wait = db.Column(db.Integer, nullable=False)
+
+
 @contextmanager
 def SessionContext():
     session = sessionmaker(bind=db.engine)()

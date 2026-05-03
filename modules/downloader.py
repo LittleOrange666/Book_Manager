@@ -1,4 +1,5 @@
 import hashlib
+import math
 import os
 import shutil
 import time
@@ -6,6 +7,7 @@ import traceback
 
 import bencodepy
 import qbittorrentapi
+import requests
 from loguru import logger
 from PIL import Image
 
@@ -58,6 +60,19 @@ def resolve(dbsession, uid):
     logger.info(f"Complete downloading {info.title} - {uid}")
     dbsession.add(info)
 
+def do_download(download: datas.Download, dbsession) -> bool:
+    res = requests.post(download.link, headers={"Authorization": download.auth})
+    if res.status_code != 200:
+        logger.info(f"Failed to download torrent info for {download.title} - {download.uid}: HTTP {res.status_code}")
+        return False
+    dat = res.json()
+    url1 = dat["url"]
+    res2 = requests.get(url1)
+    if res2.status_code != 200:
+        logger.info(f"Failed to download torrent file for {download.title} - {download.uid}: HTTP {res2.status_code}")
+        return False
+    start_download(file_content=res2.content, title=download.title, uid=download.uid, dirname=download.dirname,source=download.source, dbsession=dbsession)
+    return True
 
 def background_worker():
     with server.app.app_context():
@@ -84,6 +99,38 @@ def background_worker():
                             logger.info(f"{cnt} downloads remaining.")
                         else:
                             logger.info("All downloads completed.")
+            except Exception as e:
+                traceback.print_exception(e)
+            try:
+                with datas.SessionContext() as dbsession:
+                    nxt = math.floor(time.time() + 360)
+                    cur = math.floor(time.time())
+                    uids = []
+                    cnt = 0
+                    bads = set()
+                    for download in dbsession.query(datas.Download).all():
+                        cnt += 1
+                        if download.wait > cur:
+                            continue
+                        if download.auth in bads:
+                            download.wait = nxt
+                            dbsession.add(download)
+                            continue
+                        res = do_download(download, dbsession)
+                        if res:
+                            uids.append(download.uid)
+                        else:
+                            download.wait = nxt
+                            dbsession.add(download)
+                            bads.add(download.auth)
+                    for uid in uids:
+                        cnt -= 1
+                        dbsession.delete(dbsession.query(datas.Download).filter_by(uid=uid).first())
+                    if uids:
+                        if cnt > 0:
+                            logger.info(f"{cnt} download infos remaining.")
+                        else:
+                            logger.info("All download infos completed.")
             except Exception as e:
                 traceback.print_exception(e)
             time.sleep(10)
@@ -113,8 +160,9 @@ def extract_torrent_title(torrent_bytes):
         raise ValueError(f"Error extracting title: {e}")
 
 
-def start_download(file_content: bytes, title: str, uid: str, dirname: str, source: str):
-    old = datas.Book.query.filter_by(uid=uid).first()
+def start_download(file_content: bytes, title: str, uid: str, dirname: str, source: str, dbsession = None):
+    session = datas.db.session if dbsession is None else dbsession
+    old = session.query(datas.Book).filter_by(uid=uid).first()
     if old:
         if old.completed:
             path = constants.book_path / old.dirname
@@ -126,8 +174,8 @@ def start_download(file_content: bytes, title: str, uid: str, dirname: str, sour
                 qbt_client.torrents_delete(delete_files=True, hashes=old.torrent_hash)
             except Exception as e:
                 logger.error(f"Error deleting old torrent for {old.title} - {uid}: {e}")
-        datas.db.session.delete(old)
-        datas.db.session.flush()
+        session.delete(old)
+        session.flush()
     hash_val = calculate_torrent_hash(file_content)
     res = qbt_client.torrents_add(torrent_files=file_content, save_path=str(constants.inner_book_path / dirname))
     if res != "Ok.":
@@ -149,5 +197,35 @@ def start_download(file_content: bytes, title: str, uid: str, dirname: str, sour
             f.write(file_content)
         logger.debug(f"Saved torrent file to {filepath}")
     dat = datas.Book(uid=uid, title=title, dirname=dirname, completed=False, source=source, torrent_hash=hash_val)
+    session.add(dat)
+    if dbsession is None:
+        datas.db.session.commit()
+    else:
+        session.flush()
+
+def prepare_download(title: str, uid: str, dirname: str, source: str, auth: str, link: str):
+    old = datas.Download.query.filter_by(uid=uid).first()
+    if old:
+        datas.db.session.delete(old)
+        datas.db.session.flush()
+    old = datas.Book.query.filter_by(uid=uid).first()
+    if old:
+        if old.completed:
+            path = constants.book_path / old.dirname
+            if path.exists() and path.is_dir():
+                logger.info(f"Removing old one {old.title} - {uid}")
+                shutil.rmtree(path)
+        else:
+            try:
+                qbt_client.torrents_delete(delete_files=True, hashes=old.torrent_hash)
+            except Exception as e:
+                logger.error(f"Error deleting old torrent for {old.title} - {uid}: {e}")
+        datas.db.session.delete(old)
+        datas.db.session.flush()
+    logger.debug(f"Prepared download for {title} - {uid}, source: {source}")
+    if title is None:
+        title = ""
+    dat = datas.Download(uid=uid, title=title, dirname=dirname, source=source, auth=auth, link=link,
+                         wait=math.floor(time.time()-10))
     datas.db.session.add(dat)
     datas.db.session.commit()
