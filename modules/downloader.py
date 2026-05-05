@@ -107,14 +107,13 @@ def background_worker():
                     cur = math.floor(time.time())
                     uids = []
                     cnt = 0
-                    bads = set()
+                    bad = False
                     for download in dbsession.query(datas.Download).all():
                         cnt += 1
                         if download.wait > cur:
+                            bad = True
                             continue
-                        if download.auth in bads:
-                            download.wait = nxt
-                            dbsession.add(download)
+                        if bad:
                             continue
                         res = do_download(download, dbsession)
                         if res:
@@ -122,7 +121,7 @@ def background_worker():
                         else:
                             download.wait = nxt
                             dbsession.add(download)
-                            bads.add(download.auth)
+                            bad = True
                     for uid in uids:
                         cnt -= 1
                         dbsession.delete(dbsession.query(datas.Download).filter_by(uid=uid).first())
