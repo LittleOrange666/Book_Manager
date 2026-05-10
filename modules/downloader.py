@@ -61,15 +61,27 @@ def resolve(dbsession, uid):
     dbsession.add(info)
 
 def do_download(download: datas.Download, dbsession) -> bool:
-    res = requests.post(download.link, headers={"Authorization": download.auth})
-    if res.status_code != 200:
-        logger.info(f"Failed to download torrent info for {download.title} - {download.uid}: HTTP {res.status_code}")
+    auth = download.auth
+    if os.getenv("DOWNLOAD_AUTH"):
+        logger.info(f"Using environment variable for download auth.")
+        auth = os.getenv("DOWNLOAD_AUTH")
+    try:
+        res = requests.post(download.link, headers={"Authorization": auth})
+        if res.status_code != 200:
+            logger.info(f"Failed to download torrent info for {download.title} - {download.uid}: HTTP {res.status_code}")
+            return False
+    except requests.exceptions.RequestException:
+        logger.error(f"Network error while downloading torrent info for {download.title} - {download.uid}")
         return False
     dat = res.json()
     url1 = dat["url"]
-    res2 = requests.get(url1)
-    if res2.status_code != 200:
-        logger.info(f"Failed to download torrent file for {download.title} - {download.uid}: HTTP {res2.status_code}")
+    try:
+        res2 = requests.get(url1)
+        if res2.status_code != 200:
+            logger.info(f"Failed to download torrent file for {download.title} - {download.uid}: HTTP {res2.status_code}")
+            return False
+    except requests.exceptions.RequestException:
+        logger.error(f"Network error while downloading torrent file for {download.title} - {download.uid}")
         return False
     start_download(file_content=res2.content, title=download.title, uid=download.uid, dirname=download.dirname,source=download.source, dbsession=dbsession)
     return True
@@ -103,7 +115,7 @@ def background_worker():
                 traceback.print_exception(e)
             try:
                 with datas.SessionContext() as dbsession:
-                    nxt = math.floor(time.time() + 360)
+                    nxt = math.floor(time.time() + 60)
                     cur = math.floor(time.time())
                     uids = []
                     cnt = 0

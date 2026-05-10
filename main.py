@@ -9,6 +9,8 @@ from modules import server, datas, constants, route, api, downloader, login
 
 app = server.app
 
+do_clean = False
+
 
 class StandaloneApplication(BaseApplication):
     def __init__(self, app, options=None):
@@ -35,37 +37,38 @@ def main():
         login.init()
         api.init()
         route.init()
-        bads = datas.Book.query.filter_by(completed=False).all()
-        for bad in bads:
-            try:
-                torrent = downloader.qbt_client.torrents_info(hashes=bad.torrent_hash)
-                if torrent and torrent[0].state in ['uploading', 'pausedUP', 'queuedUP', 'stalledUP',
-                                                    'checkingUP']:
-                    downloader.qbt_client.torrents_delete(hashes=bad.torrent_hash)
-                    downloader.resolve(datas.db.session, bad.uid)
-                    continue
-            except Exception as e:
-                logger.error(f"Error checking torrent status for {bad.title} - {bad.uid}: {e}")
-            path = constants.book_path / bad.dirname
-            if path.exists() and path.is_dir():
-                shutil.rmtree(path)
-            hash_val = bad.torrent_hash
-            if hash_val:
+        if do_clean:
+            bads = datas.Book.query.filter_by(completed=False).all()
+            for bad in bads:
                 try:
-                    downloader.qbt_client.torrents_delete(hashes=hash_val)
+                    torrent = downloader.qbt_client.torrents_info(hashes=bad.torrent_hash)
+                    if torrent and torrent[0].state in ['uploading', 'pausedUP', 'queuedUP', 'stalledUP',
+                                                        'checkingUP']:
+                        downloader.qbt_client.torrents_delete(hashes=bad.torrent_hash)
+                        downloader.resolve(datas.db.session, bad.uid)
+                        continue
                 except Exception as e:
-                    logger.error(f"Error deleting uncompleted torrent for {bad.title} - {bad.uid}: {e}")
-            logger.info(f"Removing uncompleted book record: {bad.title} - {bad.uid}")
-            datas.db.session.delete(bad)
-        others = datas.Book.query.filter_by(completed=True).all()
-        for item in others:
-            path = constants.book_path / item.dirname
-            if not path.exists() or not path.is_dir():
-                logger.info(f"Removing missing book record: {item.title} - {item.uid}")
-                datas.db.session.delete(item)
-        for last in downloader.qbt_client.torrents.info.all():
-            last.delete()
-        datas.db.session.commit()
+                    logger.error(f"Error checking torrent status for {bad.title} - {bad.uid}: {e}")
+                path = constants.book_path / bad.dirname
+                if path.exists() and path.is_dir():
+                    shutil.rmtree(path)
+                hash_val = bad.torrent_hash
+                if hash_val:
+                    try:
+                        downloader.qbt_client.torrents_delete(hashes=hash_val)
+                    except Exception as e:
+                        logger.error(f"Error deleting uncompleted torrent for {bad.title} - {bad.uid}: {e}")
+                logger.info(f"Removing uncompleted book record: {bad.title} - {bad.uid}")
+                datas.db.session.delete(bad)
+            others = datas.Book.query.filter_by(completed=True).all()
+            for item in others:
+                path = constants.book_path / item.dirname
+                if not path.exists() or not path.is_dir():
+                    logger.info(f"Removing missing book record: {item.title} - {item.uid}")
+                    datas.db.session.delete(item)
+            for last in downloader.qbt_client.torrents.info.all():
+                last.delete()
+            datas.db.session.commit()
     threading.Thread(target=downloader.background_worker, daemon=True).start()
     port = os.environ.get('SERVER_PORT', '5000')
     options = {

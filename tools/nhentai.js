@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         nhentai NEW
 // @namespace    http://tampermonkey.net/
-// @version      2026-03-30
+// @version      2026-05-10
 // @description  try to take over the world!
 // @author       You
 // @match        https://nhentai.net/*
@@ -12,30 +12,12 @@
 (function() {
     'use strict';
     const downloader = "http://127.0.0.1:6756"; // downloader url
-    const min_pages = 15; // random will skip books that less than [min_pages] pages
     const lang_code = 29963; // key to filter the language of books, chinese = 29963, english = 12227, japanese = 6346
-    const random_buffer = 10;
     const admin_key = "<admin key>"; // admin key of downloader
     const originalFetch = window.fetch;
     function is_index(){
         let p = location.pathname;
-        return p.startsWith("/tag") || p.startsWith("/artist") || p.startsWith("/group") || p.startsWith("/character") || p.startsWith("/parody") || p.startsWith("/language") || p.startsWith("/favorites") || p=="/";
-    }
-    function pure(s){
-        while (s.indexOf("[")!=-1){
-            let i = s.indexOf("[");
-            let j = s.indexOf("]");
-            s = s.substring(0,i) + s.substring(j+1,s.length);
-        }
-        return s;
-    }
-    function gettargets(){
-        let r = sessionStorage.targets.split(",");
-        while (r.length&&(!r[0]))r = r.splice(1);
-        return r;
-    }
-    function settargets(v){
-        sessionStorage.targets = v.toString();
+        return p.startsWith("/tag") || p.startsWith("/artist") || p.startsWith("/group") || p.startsWith("/character") || p.startsWith("/parody") || p.startsWith("/language") || p.startsWith("/favorites") || p==="/";
     }
     function E(t,c,i){
         let r = document.createElement(t);
@@ -48,7 +30,7 @@
         let ca = document.cookie.split(';');
         for(let i=0; i < ca.length; i++) {
             let c = ca[i].trim();
-            if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+            if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
         }
         return null;
     }
@@ -106,7 +88,7 @@
             document.querySelector("#favorite").parentElement.appendChild(btn);
             btn.addEventListener("click",function(e){
                 e.preventDefault();
-                if(document.querySelector("#favorite span").textContent=="Favorite") document.querySelector("#favorite").click();
+                if(document.querySelector("#favorite span").textContent==="Favorite") document.querySelector("#favorite").click();
                 download();
             });
         }
@@ -132,15 +114,16 @@
         console.log(search.toString());
         to_link("?"+search.toString());
     }
-    function randompage(num_pages){
+    function random_page(num_pages){
         to_page(Math.ceil(num_pages*Math.random()));
     }
     let prev_page = null;
     function load_index(galleries, page, num_pages){
         let id_mp = {};
         for(let gallery of galleries){
-            id_mp[""+gallery.id] = gallery.media_id;
+            id_mp[""+gallery.id] = gallery["media_id"];
         }
+        console.log(id_mp)
         for(let o of document.querySelectorAll('.gallery')){
             let a0 = o.querySelector("a");
             let img = o.querySelector("img");
@@ -155,13 +138,13 @@
             a.appendChild(o.querySelector("div"));
             o.appendChild(a);
         }
-        if(galleries.length==0){
+        if(galleries.length===0){
             console.log(page, num_pages);
             if(sessionStorage.rp){
-                randompage(num_pages);
-            }else if (page==1){
+                random_page(num_pages);
+            }else if (page===1){
                 to_page(+page+1);
-            }else if (page==num_pages){
+            }else if (page===num_pages){
                 to_page(+page-1);
             }else if(page<prev_page){
                 to_page(+page-1);
@@ -175,22 +158,46 @@
                 let b1 = E("a","current custom-btn-1","Random Page");
                 b1.addEventListener("click",function(){
                     sessionStorage.rp = 1;
-                    randompage(num_pages);
+                    random_page(num_pages);
                 });
                 d1.appendChild(b1);
                 document.querySelector(".sort").appendChild(d1);
+                if (document.querySelector(".desktop-pagination")){
+                    let as = document.querySelectorAll(".desktop-pagination a");
+                    let rp = E("a",as[as.length-1].className,"?");
+                    rp.onclick = function(){
+                        sessionStorage.rp = 1;
+                        random_page(num_pages);
+                    };
+                    document.querySelector(".desktop-pagination").insertBefore(rp,as[as.length-1].nextSibling);
+                }
             }
         }
         prev_page = page;
     }
+    function get_url(s){
+        return s.includes("http")?new URL(s):new URL(location.origin+s);
+    }
+    let safe_flag = false;
     window.fetch = async (...args) => {
+        if (args[0].includes('galleries/tagged')){
+            let url = get_url(args[0]);
+            url.pathname = "/api/v2/search";
+            let tag_id = url.searchParams.get("tag_id");
+            if (sessionStorage["tag-"+tag_id]){
+                url.searchParams.delete("tag_id");
+                url.searchParams.append("query",sessionStorage["tag-"+tag_id]+" language:chinese");
+                args[0] = url.href;
+                safe_flag = true;
+            }
+        }
         const response = await originalFetch(...args);
-        if (args[0].includes('galleries/tagged')||args[0].includes('galleries/popular')||args[0].includes('galleries?')) {
+        if (args[0].includes('/search')||args[0].includes('galleries/tagged')||args[0].includes('galleries/popular')||args[0].includes('galleries?')) {
             const data = await response.json();
             let arr = data.result;
             let nw_arr = [];
             for(let gallery of arr){
-                if (gallery.tag_ids.includes(lang_code)) {
+                if (gallery["tag_ids"].includes(lang_code)) {
                     nw_arr.push(gallery);
                 }
             }
@@ -198,7 +205,7 @@
             //console.log(args);
             console.log(location.href);
             console.log(location.origin+args[0]);
-            let page = Number((new URL(location.origin+args[0])).searchParams.get("page")||"1");
+            let page = Number(get_url(args[0]).searchParams.get("page")||"1");
             //console.log(page);
             let num_pages = data.num_pages;
             window.setTimeout(load_index.bind(null, nw_arr, page, num_pages), 10);
@@ -209,13 +216,23 @@
             });
         }else if (args[0].match(/galleries\/\d+/)){
             window.setTimeout(load_gallery,10);
+        }else if (args[0].match("tags\/\(.+)\/(.+)")){
+            const data = await response.json();
+            let o = args[0].match("tags\/\(.+)\/(.+)");
+            if("language"!==o[1])sessionStorage["tag-"+data.id] = o[1]+":"+o[2];
+            return new Response(JSON.stringify(data), {
+                status: response.status,
+                statusText: response.statusText,
+                headers: response.headers
+            });
         }
         return response;
     };
     window.setTimeout(function(){
         if(is_index()){
             let search = new URLSearchParams(location.search);
-            if(!search.get("page")) to_page(1);
+            if(!search.get("page")&&!safe_flag) to_page(1);
         }
+        load_gallery();
     },100);
 })();
