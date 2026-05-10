@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         nhentai NEW
 // @namespace    http://tampermonkey.net/
-// @version      2026-05-10
+// @version      2026-05-11
 // @description  try to take over the world!
 // @author       You
 // @match        https://nhentai.net/*
@@ -67,19 +67,22 @@
             window.alert(data);
             return false;
         }
+        let favorite_link = "/api/v2/galleries/"+name+"/favorite"
+        let headers = new Headers();
+        headers.append("Authorization", auth);
+        await fetch(favorite_link, {method: "POST", headers: headers});
         return true;
     }
-    function download(link, callback, error_callback){
+    function download(link){
         new_download(link).then(function(success){
             if (success) {
-                if (callback instanceof Function) callback();
+                console.log("success");
             } else {
-                if (error_callback instanceof Function) error_callback();
+                console.log("error");
             }
         }).catch(function (error){
             console.log(error);
             window.alert("Download Faild, Please check the Downloader");
-            if (error_callback instanceof Function) error_callback();
         });
     }
     function load_gallery(){
@@ -88,7 +91,6 @@
             document.querySelector("#favorite").parentElement.appendChild(btn);
             btn.addEventListener("click",function(e){
                 e.preventDefault();
-                if(document.querySelector("#favorite span").textContent==="Favorite") document.querySelector("#favorite").click();
                 download();
             });
         }
@@ -107,11 +109,9 @@
         a.remove();
     }
     function to_page(page){
-        console.log(page);
         let search = new URLSearchParams(location.search);
         search.set("sort","date");
         search.set("page", page);
-        console.log(search.toString());
         to_link("?"+search.toString());
     }
     function random_page(num_pages){
@@ -123,7 +123,6 @@
         for(let gallery of galleries){
             id_mp[""+gallery.id] = gallery["media_id"];
         }
-        console.log(id_mp)
         for(let o of document.querySelectorAll('.gallery')){
             let a0 = o.querySelector("a");
             let img = o.querySelector("img");
@@ -138,8 +137,7 @@
             a.appendChild(o.querySelector("div"));
             o.appendChild(a);
         }
-        if(galleries.length===0){
-            console.log(page, num_pages);
+        if(galleries.length===0&&num_pages>1){
             if(sessionStorage.rp){
                 random_page(num_pages);
             }else if (page===1){
@@ -202,13 +200,10 @@
                 }
             }
             data.result = nw_arr;
-            //console.log(args);
-            console.log(location.href);
-            console.log(location.origin+args[0]);
             let page = Number(get_url(args[0]).searchParams.get("page")||"1");
-            //console.log(page);
             let num_pages = data.num_pages;
             window.setTimeout(load_index.bind(null, nw_arr, page, num_pages), 10);
+            document.querySelector(".count").textContent = ""+data.total;
             return new Response(JSON.stringify(data), {
                 status: response.status,
                 statusText: response.statusText,
