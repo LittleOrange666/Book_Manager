@@ -178,6 +178,7 @@
     }
     let safe_flag = false;
     window.fetch = async (...args) => {
+        if (args[1].method !== "GET") return await originalFetch(...args);
         if (args[0].includes('galleries/tagged')){
             let url = get_url(args[0]);
             url.pathname = "/api/v2/search";
@@ -190,7 +191,7 @@
             }
         }
         const response = await originalFetch(...args);
-        if (args[0].includes('/search')||args[0].includes('galleries/tagged')||args[0].includes('galleries/popular')||args[0].includes('galleries?')) {
+        if (args[0].includes('/search')||args[0].includes('galleries/tagged')) {
             const data = await response.json();
             let arr = data.result;
             let nw_arr = [];

@@ -4,12 +4,15 @@ import os
 import shutil
 import time
 import traceback
+from collections import defaultdict
 
 import bencodepy
 import qbittorrentapi
 import requests
 from loguru import logger
 from PIL import Image
+from qbittorrentapi import TorrentState
+from sqlalchemy.orm import Session
 
 from . import datas, constants, server
 
@@ -71,7 +74,7 @@ def do_download(download: datas.Download, dbsession) -> bool:
             logger.info(f"Failed to download torrent info for {download.title} - {download.uid}: HTTP {res.status_code}")
             return False
     except requests.exceptions.RequestException:
-        logger.error(f"Network error while downloading torrent info for {download.title} - {download.uid}")
+        logger.exception(f"Network error while downloading torrent info for {download.title} - {download.uid}")
         return False
     dat = res.json()
     url1 = dat["url"]
@@ -81,69 +84,122 @@ def do_download(download: datas.Download, dbsession) -> bool:
             logger.info(f"Failed to download torrent file for {download.title} - {download.uid}: HTTP {res2.status_code}")
             return False
     except requests.exceptions.RequestException:
-        logger.error(f"Network error while downloading torrent file for {download.title} - {download.uid}")
+        logger.exception(f"Network error while downloading torrent file for {download.title} - {download.uid}")
         return False
     start_download(file_content=res2.content, title=download.title, uid=download.uid, dirname=download.dirname,source=download.source, dbsession=dbsession)
     return True
+
+"""
+Value	Description
+error	Some error occurred, applies to paused torrents
+missingFiles	Torrent data files is missing
+uploading	Torrent is being seeded and data is being transferred
+pausedUP	Torrent is paused and has finished downloading
+queuedUP	Queuing is enabled and torrent is queued for upload
+stalledUP	Torrent is being seeded, but no connection were made
+checkingUP	Torrent has finished downloading and is being checked
+forcedUP	Torrent is forced to uploading and ignore queue limit
+allocating	Torrent is allocating disk space for download
+downloading	Torrent is being downloaded and data is being transferred
+metaDL	Torrent has just started downloading and is fetching metadata
+pausedDL	Torrent is paused and has NOT finished downloading
+queuedDL	Queuing is enabled and torrent is queued for download
+stalledDL	Torrent is being downloaded, but no connection were made
+checkingDL	Same as checkingUP, but torrent has NOT finished downloading
+forcedDL	Torrent is forced to downloading to ignore queue limit
+checkingResumeData	Checking resume data on qBt startup
+moving	Torrent is moving to another location
+unknown	Unknown status
+"""
+
+
+stalled_cnt: dict[str, int] = defaultdict(int)
+BREAK_THRESHOLD = 15
+
+
+def scan_torrents(dbsession: Session):
+    uids = []
+    cnt = 0
+    has_queued = False
+    for book in dbsession.query(datas.Book).filter_by(completed=False).all():
+        h = book.torrent_hash
+        cnt += 1
+        try:
+            torrents = qbt_client.torrents_info(hashes=h)
+            if not torrents:
+                continue
+            torrent = torrents[0]
+            if torrent.state_enum.is_uploading:
+                torrent.delete()
+                uids.append(book.uid)
+            elif torrent.state_enum is TorrentState.QUEUED_DOWNLOAD:
+                has_queued = True
+            if torrent.state_enum is TorrentState.STALLED_DOWNLOAD:
+                stalled_cnt[h] += 1
+            elif h in stalled_cnt:
+                del stalled_cnt[h]
+        except Exception as e:
+            logger.exception(f"Error checking torrent status for {book.title} - {book.uid}: {e}")
+    if has_queued and not uids and max(stalled_cnt.values()) >= BREAK_THRESHOLD:
+        t = max(stalled_cnt.items(), key=lambda x: x[1])
+        logger.warning(f"Detected stalled torrents with hash {t[0]} for {t[1]} consecutive checks. Move it to the bottom of queue")
+        try:
+            qbt_client.torrents_bottom_priority(torrent_hashes=t[0])
+        except Exception as e:
+            logger.exception(f"Error moving stalled torrent with hash {t[0]} to bottom of queue: {e}")
+        stalled_cnt.clear()
+    for uid in uids:
+        cnt -= 1
+        resolve(dbsession, uid)
+    if uids:
+        if cnt > 0:
+            logger.info(f"{cnt} downloads remaining.")
+        else:
+            logger.info("All downloads completed.")
+
+
+def scan_downloads(dbsession: Session):
+    nxt = math.floor(time.time() + 60)
+    cur = math.floor(time.time())
+    uids = []
+    cnt = 0
+    bad = False
+    for download in dbsession.query(datas.Download).all():
+        cnt += 1
+        if download.wait > cur:
+            bad = True
+            continue
+        if bad:
+            continue
+        res = do_download(download, dbsession)
+        if res:
+            uids.append(download.uid)
+        else:
+            download.wait = nxt
+            dbsession.add(download)
+            bad = True
+    for uid in uids:
+        cnt -= 1
+        dbsession.delete(dbsession.query(datas.Download).filter_by(uid=uid).first())
+    if uids:
+        if cnt > 0:
+            logger.info(f"{cnt} download infos remaining.")
+        else:
+            logger.info("All download infos completed.")
 
 def background_worker():
     with server.app.app_context():
         while True:
             try:
                 with datas.SessionContext() as dbsession:
-                    uids = []
-                    cnt = 0
-                    for book in dbsession.query(datas.Book).filter_by(completed=False).all():
-                        cnt += 1
-                        try:
-                            torrent = qbt_client.torrents_info(hashes=book.torrent_hash)
-                            if torrent and torrent[0].state in ['uploading', 'pausedUP', 'queuedUP', 'stalledUP',
-                                                                'checkingUP']:
-                                qbt_client.torrents_delete(hashes=book.torrent_hash)
-                                uids.append(book.uid)
-                        except Exception as e:
-                            logger.error(f"Error checking torrent status for {book.title} - {book.uid}: {e}")
-                    for uid in uids:
-                        cnt -= 1
-                        resolve(dbsession, uid)
-                    if uids:
-                        if cnt > 0:
-                            logger.info(f"{cnt} downloads remaining.")
-                        else:
-                            logger.info("All downloads completed.")
+                    scan_torrents(dbsession)
             except Exception as e:
-                traceback.print_exception(e)
+                logger.exception(f"Error scanning torrents: {e}")
             try:
                 with datas.SessionContext() as dbsession:
-                    nxt = math.floor(time.time() + 60)
-                    cur = math.floor(time.time())
-                    uids = []
-                    cnt = 0
-                    bad = False
-                    for download in dbsession.query(datas.Download).all():
-                        cnt += 1
-                        if download.wait > cur:
-                            bad = True
-                            continue
-                        if bad:
-                            continue
-                        res = do_download(download, dbsession)
-                        if res:
-                            uids.append(download.uid)
-                        else:
-                            download.wait = nxt
-                            dbsession.add(download)
-                            bad = True
-                    for uid in uids:
-                        cnt -= 1
-                        dbsession.delete(dbsession.query(datas.Download).filter_by(uid=uid).first())
-                    if uids:
-                        if cnt > 0:
-                            logger.info(f"{cnt} download infos remaining.")
-                        else:
-                            logger.info("All download infos completed.")
+                    scan_downloads(dbsession)
             except Exception as e:
-                traceback.print_exception(e)
+                logger.exception(f"Error scanning downloads: {e}")
             time.sleep(10)
 
 
@@ -184,22 +240,22 @@ def start_download(file_content: bytes, title: str, uid: str, dirname: str, sour
             try:
                 qbt_client.torrents_delete(delete_files=True, hashes=old.torrent_hash)
             except Exception as e:
-                logger.error(f"Error deleting old torrent for {old.title} - {uid}: {e}")
+                logger.exception(f"Error deleting old torrent for {old.title} - {uid}: {e}")
         session.delete(old)
         session.flush()
     hash_val = calculate_torrent_hash(file_content)
     res = qbt_client.torrents_add(torrent_files=file_content, save_path=str(constants.inner_book_path / dirname))
     if res != "Ok.":
-        logger.error(f"Failed to add torrent for {title} - {uid}: {res}")
+        logger.exception(f"Failed to add torrent for {title} - {uid}: {res}")
         return
     if not title:
         try:
             title = extract_torrent_title(file_content)
         except Exception as e:
-            logger.error(f"Failed to extract title from torrent for {uid}: {e}")
+            logger.exception(f"Failed to extract title from torrent for {uid}: {e}")
             return
     if not hash_val:
-        logger.error(f"Failed to retrieve torrent hash for {title} - {uid}")
+        logger.exception(f"Failed to retrieve torrent hash for {title} - {uid}")
         return
     logger.debug(f"Torrent hash for {title} - {uid}: {hash_val}")
     if constants.seed_valid:
@@ -230,7 +286,7 @@ def prepare_download(title: str, uid: str, dirname: str, source: str, auth: str,
             try:
                 qbt_client.torrents_delete(delete_files=True, hashes=old.torrent_hash)
             except Exception as e:
-                logger.error(f"Error deleting old torrent for {old.title} - {uid}: {e}")
+                logger.exception(f"Error deleting old torrent for {old.title} - {uid}: {e}")
         datas.db.session.delete(old)
         datas.db.session.flush()
     logger.debug(f"Prepared download for {title} - {uid}, source: {source}")
