@@ -223,7 +223,7 @@ def scan_torrents(dbsession: Session):
         except Exception as e:
             logger.exception(f"Error checking torrent status for {book.title} - {book.uid}: {e}")
     if not uids:
-        if has_queued and max(stalled_cnt.values()) >= BREAK_THRESHOLD:
+        if has_queued and max(stalled_cnt.values(),default=0) >= BREAK_THRESHOLD:
             t = max(stalled_cnt.items(), key=lambda x: x[1])
             logger.warning(f"Detected stalled torrents with hash {t[0]} for {t[1]} consecutive checks. Move it to the bottom of queue")
             try:
@@ -231,7 +231,7 @@ def scan_torrents(dbsession: Session):
             except Exception as e:
                 logger.exception(f"Error moving stalled torrent with hash {t[0]} to bottom of queue: {e}")
             stalled_cnt.clear()
-        elif max(total_stalled_cnt.values()) >= FORCE_THRESHOLD:
+        elif max(total_stalled_cnt.values(),default=0) >= FORCE_THRESHOLD:
             t = max(total_stalled_cnt.items(), key=lambda x: x[1])
             logger.info(f"Detected stalled torrents with hash {t[0]} for {t[1]} consecutive checks. Try force download.")
             try:

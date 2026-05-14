@@ -86,8 +86,8 @@
         });
     }
     function load_gallery(){
-        if (document.querySelector("#favorite")){
-            let btn = E("button","btn btn-secondary","DoDownload");
+        if (document.querySelector("#favorite")&&!document.querySelector(".btn-do-download")){
+            let btn = E("button","btn btn-secondary btn-do-download","DoDownload");
             document.querySelector("#favorite").parentElement.appendChild(btn);
             btn.addEventListener("click",function(e){
                 e.preventDefault();
@@ -118,6 +118,29 @@
         to_page(Math.ceil(num_pages*Math.random()));
     }
     let prev_page = null;
+    function check_img(img){
+        let delay = 1000;
+        let url = new URL(img.src);
+        let idx = 0;
+        function clean(){
+            if(idx){
+                window.clearTimeout(idx);
+                idx = 0;
+            }
+        }
+        let o = ['t1.nhentai.net','t2.nhentai.net','t3.nhentai.net','t4.nhentai.net'];
+        function refresh(){
+            clean();
+            o.pop(url.host);
+            if(!o.length) return;
+            url.host = o[0];
+            img.src = url.href;
+            if(!img.complete) idx = window.setTimeout(refresh,delay);
+        }
+        img.addEventListener('load', clean);
+        img.addEventListener('error', refresh);
+        if(!img.complete) idx = window.setTimeout(refresh,delay);
+    }
     function load_index(galleries, page, num_pages){
         let id_mp = {};
         for(let gallery of galleries){
@@ -126,15 +149,19 @@
         for(let o of document.querySelectorAll('.gallery')){
             let a0 = o.querySelector("a");
             let img = o.querySelector("img");
+            check_img(img);
             let id = a0.href.match(/\d+/)[0];
             let mid = id_mp[id];
             img.src = img.src.replace(/\d{2,}/,mid);
             let a = document.createElement("a");
             let link = o.querySelector("a").href;
+            let d = o.querySelector("div");
             a.onclick = function(){
                 download(link);
+                o.removeChild(a);
+                o.appendChild(d);
             };
-            a.appendChild(o.querySelector("div"));
+            a.appendChild(d);
             o.appendChild(a);
         }
         if(galleries.length===0&&num_pages>1){
@@ -159,7 +186,7 @@
                     random_page(num_pages);
                 });
                 d1.appendChild(b1);
-                document.querySelector(".sort").appendChild(d1);
+                if(document.querySelector(".sort")) document.querySelector(".sort").appendChild(d1);
                 if (document.querySelector(".desktop-pagination")){
                     let as = document.querySelectorAll(".desktop-pagination a");
                     let rp = E("a",as[as.length-1].className,"?");
@@ -201,17 +228,9 @@
         const response = await originalFetch(request);
         if (path.includes('/search')||path.includes('galleries/tagged')) {
             const data = await response.json();
-            let arr = data.result;
-            let nw_arr = [];
-            for(let gallery of arr){
-                if (gallery.tag_ids.includes(lang_code)) {
-                    nw_arr.push(gallery);
-                }
-            }
-            data.result = nw_arr;
             let page = Number(get_url(path).searchParams.get("page")||"1");
             let num_pages = data.num_pages;
-            window.setTimeout(load_index.bind(null, nw_arr, page, num_pages), 10);
+            window.setTimeout(load_index.bind(null, data.result, page, num_pages), 300);
             document.querySelector(".count").textContent = ""+data.total;
             return new Response(JSON.stringify(data), {
                 status: response.status,
@@ -219,7 +238,7 @@
                 headers: response.headers
             });
         }else if (path.match(/galleries\/\d+/)){
-            window.setTimeout(load_gallery,10);
+            window.setTimeout(load_gallery,300);
         }else if (path.match("tags\/\(.+)\/(.+)")){
             const data = await response.json();
             let o = path.match("tags\/\(.+)\/(.+)");
@@ -235,8 +254,8 @@
     window.setTimeout(function(){
         if(is_index()){
             let search = new URLSearchParams(location.search);
-            if(!search.get("page")&&!safe_flag) to_page(1);
+            if(!search.get("page")&&!safe_flag&&!document.querySelector(".error-page")) to_page(1);
         }
         load_gallery();
-    },100);
+    },300);
 })();
