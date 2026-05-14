@@ -178,30 +178,38 @@
     }
     let safe_flag = false;
     window.fetch = async (...args) => {
-        if (args[1].method !== "GET") return await originalFetch(...args);
-        if (args[0].includes('galleries/tagged')){
-            let url = get_url(args[0]);
+        let request;
+        if (args[0] instanceof Request) {
+            request = args[0];
+        } else {
+            request = new Request(args[0], args[1]);
+        }
+        if (request.method !== "GET") return await originalFetch(request);
+        let path = request.url;
+        if (path.includes('galleries/tagged')){
+            let url = get_url(path);
             url.pathname = "/api/v2/search";
             let tag_id = url.searchParams.get("tag_id");
             if (sessionStorage["tag-"+tag_id]){
                 url.searchParams.delete("tag_id");
                 url.searchParams.append("query",sessionStorage["tag-"+tag_id]+" language:chinese");
-                args[0] = url.href;
+                path = url.href;
+                request = new Request(path, request);
                 safe_flag = true;
             }
         }
-        const response = await originalFetch(...args);
-        if (args[0].includes('/search')||args[0].includes('galleries/tagged')) {
+        const response = await originalFetch(request);
+        if (path.includes('/search')||path.includes('galleries/tagged')) {
             const data = await response.json();
             let arr = data.result;
             let nw_arr = [];
             for(let gallery of arr){
-                if (gallery["tag_ids"].includes(lang_code)) {
+                if (gallery.tag_ids.includes(lang_code)) {
                     nw_arr.push(gallery);
                 }
             }
             data.result = nw_arr;
-            let page = Number(get_url(args[0]).searchParams.get("page")||"1");
+            let page = Number(get_url(path).searchParams.get("page")||"1");
             let num_pages = data.num_pages;
             window.setTimeout(load_index.bind(null, nw_arr, page, num_pages), 10);
             document.querySelector(".count").textContent = ""+data.total;
@@ -210,11 +218,11 @@
                 statusText: response.statusText,
                 headers: response.headers
             });
-        }else if (args[0].match(/galleries\/\d+/)){
+        }else if (path.match(/galleries\/\d+/)){
             window.setTimeout(load_gallery,10);
-        }else if (args[0].match("tags\/\(.+)\/(.+)")){
+        }else if (path.match("tags\/\(.+)\/(.+)")){
             const data = await response.json();
-            let o = args[0].match("tags\/\(.+)\/(.+)");
+            let o = path.match("tags\/\(.+)\/(.+)");
             if("language"!==o[1])sessionStorage["tag-"+data.id] = o[1]+":"+o[2];
             return new Response(JSON.stringify(data), {
                 status: response.status,

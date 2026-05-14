@@ -1,16 +1,19 @@
 import hashlib
+import io
 import math
 import os
+import re
 import shutil
 import time
-import traceback
 from collections import defaultdict
+from typing import Literal
+from zipfile import ZipFile
 
 import bencodepy
 import qbittorrentapi
 import requests
-from loguru import logger
 from PIL import Image
+from loguru import logger
 from qbittorrentapi import TorrentState
 from sqlalchemy.orm import Session
 
@@ -89,6 +92,76 @@ def do_download(download: datas.Download, dbsession) -> bool:
     start_download(file_content=res2.content, title=download.title, uid=download.uid, dirname=download.dirname,source=download.source, dbsession=dbsession)
     return True
 
+Download_info = tuple[str,Literal["two_step","direct"],Literal["zip"]]
+
+def force_download_info(source: str) -> Download_info | None:
+    if re.match("https://nhentai.net/g/\\d+",source):
+        idx = re.match("https://nhentai.net/g/(\\d+)",source).group(1)
+        return f"https://nhentai.net/api/v2/galleries/{idx}/download?format=zip", "two_step", "zip"
+    return None
+
+def download_file(link: str, method: Literal["two_step","direct"]) -> bytes | None:
+    headers = {}
+    if os.getenv("DOWNLOAD_AUTH"):
+        headers["Authorization"] = os.getenv("DOWNLOAD_AUTH")
+    if method == "direct":
+        try:
+            res = requests.get(link,headers=headers)
+            if res.status_code != 200:
+                logger.info(f"Failed to download file from {link}: HTTP {res.status_code}")
+                return None
+            return res.content
+        except Exception as e:
+            logger.exception(f"Error downloading file from {link}: {e}")
+            return None
+    elif method == "two_step":
+        try:
+            res = requests.post(link,headers=headers)
+            if res.status_code != 200:
+                logger.info(f"Failed to download file info from {link}: HTTP {res.status_code}")
+                return None
+        except Exception as e:
+            logger.exception(f"Error downloading file info from {link}: {e}")
+            return None
+        try:
+            dat = res.json()
+            url1 = dat["url"]
+            res2 = requests.get(url1,headers=headers)
+            if res2.status_code != 200:
+                logger.info(f"Failed to download file info from {url1}: HTTP {res2.status_code}")
+                return None
+            return res2.content
+        except Exception as e:
+            logger.exception(f"Error downloading file from {link}: {e}")
+            return None
+    return None
+
+def save_to(content: bytes, file_format: Literal["zip"], target: str) -> bool:
+    if file_format == "zip":
+        with io.BytesIO(content) as buffer:
+            with ZipFile(buffer) as zip_file:
+                os.makedirs(target, exist_ok=True)
+                zip_file.extractall(target)
+        return True
+    else:
+        logger.error(f"Unsupported file format {file_format} for saving to {target}")
+        return False
+
+def force_download(book: datas.Book, dbsession) -> bool:
+    info = force_download_info(book.source)
+    if info is None:
+        return False
+    link, method, file_format = info
+    logger.info(f"Trying to force download {book.title} - {book.uid} from {link} using method {method}")
+    file_content = download_file(link, method)
+    if file_content is None:
+        return False
+    logger.info(f"Successfully downloaded file for {book.title} - {book.uid} from {link}. Saving to disk.")
+    if not save_to(file_content, file_format, str(constants.inner_book_path / book.dirname / "TMP_DIR")):
+        return False
+    resolve(dbsession, book.uid)
+    return False
+
 """
 Value	Description
 error	Some error occurred, applies to paused torrents
@@ -114,43 +187,70 @@ unknown	Unknown status
 
 
 stalled_cnt: dict[str, int] = defaultdict(int)
+total_stalled_cnt: dict[str, int] = defaultdict(int)
 BREAK_THRESHOLD = 15
+FORCE_THRESHOLD = 300
+FAILED_DECREASE = 20
 
 
 def scan_torrents(dbsession: Session):
     uids = []
     cnt = 0
     has_queued = False
+    rms = []
     for book in dbsession.query(datas.Book).filter_by(completed=False).all():
         h = book.torrent_hash
         cnt += 1
         try:
             torrents = qbt_client.torrents_info(hashes=h)
             if not torrents:
+                logger.warning(f"No torrent found for {book.title} - {book.uid} with hash {h}. Marking as removed.")
+                rms.append(book.uid)
                 continue
             torrent = torrents[0]
             if torrent.state_enum.is_uploading:
                 torrent.delete()
                 uids.append(book.uid)
+                if h in total_stalled_cnt:
+                    del total_stalled_cnt[h]
             elif torrent.state_enum is TorrentState.QUEUED_DOWNLOAD:
                 has_queued = True
             if torrent.state_enum is TorrentState.STALLED_DOWNLOAD:
                 stalled_cnt[h] += 1
+                total_stalled_cnt[h] += 1
             elif h in stalled_cnt:
                 del stalled_cnt[h]
         except Exception as e:
             logger.exception(f"Error checking torrent status for {book.title} - {book.uid}: {e}")
-    if has_queued and not uids and max(stalled_cnt.values()) >= BREAK_THRESHOLD:
-        t = max(stalled_cnt.items(), key=lambda x: x[1])
-        logger.warning(f"Detected stalled torrents with hash {t[0]} for {t[1]} consecutive checks. Move it to the bottom of queue")
-        try:
-            qbt_client.torrents_bottom_priority(torrent_hashes=t[0])
-        except Exception as e:
-            logger.exception(f"Error moving stalled torrent with hash {t[0]} to bottom of queue: {e}")
-        stalled_cnt.clear()
+    if not uids:
+        if has_queued and max(stalled_cnt.values()) >= BREAK_THRESHOLD:
+            t = max(stalled_cnt.items(), key=lambda x: x[1])
+            logger.warning(f"Detected stalled torrents with hash {t[0]} for {t[1]} consecutive checks. Move it to the bottom of queue")
+            try:
+                qbt_client.torrents_bottom_priority(torrent_hashes=t[0])
+            except Exception as e:
+                logger.exception(f"Error moving stalled torrent with hash {t[0]} to bottom of queue: {e}")
+            stalled_cnt.clear()
+        elif max(total_stalled_cnt.values()) >= FORCE_THRESHOLD:
+            t = max(total_stalled_cnt.items(), key=lambda x: x[1])
+            logger.info(f"Detected stalled torrents with hash {t[0]} for {t[1]} consecutive checks. Try force download.")
+            try:
+                res = force_download(dbsession.query(datas.Book).filter_by(torrent_hash=t[0]).first(), dbsession)
+                if res:
+                    logger.info(f"Force download succeeded for torrent with hash {t[0]}.")
+                    del total_stalled_cnt[t[0]]
+                else:
+                    logger.warning(f"Force download failed for torrent with hash {t[0]}. Will try again later.")
+                    total_stalled_cnt[t[0]] -= FAILED_DECREASE
+            except Exception as e:
+                logger.exception(f"Error force downloading torrent with hash {t[0]}: {e}")
+                total_stalled_cnt[t[0]] -= FAILED_DECREASE
     for uid in uids:
         cnt -= 1
         resolve(dbsession, uid)
+    for uid in rms:
+        cnt -= 1
+        dbsession.delete(dbsession.query(datas.Book).filter_by(uid=uid).first())
     if uids:
         if cnt > 0:
             logger.info(f"{cnt} downloads remaining.")
