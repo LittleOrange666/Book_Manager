@@ -1,8 +1,10 @@
 let mobile = isMobileDevice();
 let gallery_width = mobile ? "33%" : "16.2%";
 const step = 96;
+const small_step = mobile ? 3 : 6;
 let waiting = true;
 let offset = +localStorage.getItem("index_offset") || 0;
+let total = step;
 let waiting_up = offset > 0;
 let end = offset;
 const watcher = new IntersectionObserver(onEnterView);
@@ -67,6 +69,14 @@ document.getElementById("custom-menu-action4").addEventListener('click', () => {
             window.alert("Failed: \n" + err);
         });
 });
+document.getElementById("custom-menu-action5").addEventListener('click', () => {
+    localStorage.setItem("index_offset", ""+(Math.floor(Math.random()*(total-step)/small_step)*small_step));
+    location.reload();
+});
+document.getElementById("custom-menu-action6").addEventListener('click', () => {
+    localStorage.setItem("index_offset", "0");
+    location.reload();
+});
 const [bind_element,hideMenu] = register_menu(menu_element, before_open);
 
 function create_gallery(o) {
@@ -114,6 +124,7 @@ function add_end(initial) {
             .then(data => {
                 let HEIGHT = Math.floor(document.body.clientWidth / (mobile ? 3 : 6)) + "px";
                 // localStorage.setItem("index_offset", end);
+                total = data["total"];
                 for (let o of data["books"]) {
                     let e = create_gallery(o);
                     let img = e.querySelector("img");
@@ -162,6 +173,7 @@ function add_start(end_pos) {
                 let HEIGHT = Math.floor(document.body.clientWidth / (mobile ? 3 : 6)) + "px";
                 let old_begin = document.querySelector(".gallery");
                 let pos = end_pos - 1;
+                total = data["total"];
                 for (let i = data["books"].length - 1; i >= 0; i--) {
                     let o = data["books"][i];
                     let e = create_gallery(o);
@@ -220,7 +232,7 @@ function onEnterView2(entries, observer) {
     if (intersecting_pos.size === 0) return;
     let mi = Math.min(...intersecting_pos);
     let val = mi - mi%6;
-    localStorage.setItem("index_offset", val);
+    localStorage.setItem("index_offset", ""+val);
 }
 
 let init_scroll = false;

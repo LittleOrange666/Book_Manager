@@ -91,7 +91,8 @@ index_get_output = api.model('BookIndex', {
         'dirname': fields.String(description="Directory name of the book"),
         'source': fields.String(description="Source of the book")
     })), description="List of books"),
-    "length": fields.Integer(description="Number of books returned")
+    "length": fields.Integer(description="Number of books returned"),
+    "total": fields.Integer(description="Total number of books")
 })
 
 login_post_input = reqparse.RequestParser()
@@ -187,7 +188,7 @@ class BookIndex(Resource):
         path = constants.book_path / dirname
         if not path.exists() or not path.is_dir():
             return {"message": "Directory not found"}, 404
-        old = datas.Book.query.filter_by(uid=uid).first()
+        old = datas.db.session.query(datas.Book).filter_by(uid=uid).first()
         if old:
             return {"message": "Book with this UID already exists"}, 409
         dat = datas.Book(uid=uid, title=title, dirname=dirname, completed=True, source=source, torrent_hash="UNKNOWN")
@@ -202,7 +203,7 @@ class BookIndex(Resource):
     def get(self):
         args = book_get_input.parse_args()
         uid = args['uid']
-        book = datas.Book.query.filter_by(uid=uid, completed=True).first()
+        book = datas.db.session.query(datas.Book).filter_by(uid=uid, completed=True).first()
         if not book:
             return {"message": "Book not found"}, 404
         path = constants.book_path / book.dirname
@@ -222,7 +223,7 @@ class BookIndex(Resource):
         if not check_admin(args):
             return {"message": "admin required"}, 403
         uid = args['uid']
-        book = datas.Book.query.filter_by(uid=uid, completed=True).first()
+        book = datas.db.session.query(datas.Book).filter_by(uid=uid, completed=True).first()
         if not book:
             return {"message": "Book not found"}, 404
         path = constants.book_path / book.dirname
@@ -270,7 +271,8 @@ class Index(Resource):
         count = args.get('count', 10)
         if begin < 1 or count < 1 or count > 100:
             return {"message": "Invalid parameters"}, 400
-        books = datas.Book.query.filter_by(completed=True).order_by(datas.Book.id.desc()).offset(begin - 1).limit(
+        total = datas.db.session.query(datas.Book).filter_by(completed=True).count()
+        books = datas.db.session.query(datas.Book).filter_by(completed=True).order_by(datas.Book.id.desc()).offset(begin - 1).limit(
             count).all()
         result = []
         for book in books:
@@ -280,7 +282,7 @@ class Index(Resource):
                 "dirname": book.dirname,
                 "source": book.source
             })
-        return {"books": result, "length": len(result)}, 200
+        return {"books": result, "length": len(result), "total": total}, 200
 
 
 @api.route("/login")

@@ -1,4 +1,3 @@
-import copy
 import os
 import re
 import secrets
@@ -6,7 +5,6 @@ import time
 
 import docker
 import requests
-import yaml
 
 
 def extract_temp_password(logs):
@@ -29,12 +27,6 @@ def change_qbittorrent_password(ip, port, username, temp_password, new_password)
     response = session.post(login_url, data=login_data)
     if response.status_code != 200 or response.text != "Ok.":
         raise Exception(f"Login failed: {response.text}")
-
-    # Change password
-    new_settings = {
-        "web_ui_username": username,
-        "web_ui_password": new_password
-    }
     # qBittorrent API requires JSON payload with preferences
     payload = {"json": '{"web_ui_username":"' + username + '","web_ui_password":"' + new_password + '"}'}
     response = session.post(settings_url, data=payload)
