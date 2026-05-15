@@ -106,30 +106,29 @@ function create_gallery(o) {
     return div;
 }
 
+function resolve_response(response){
+    if (response.status === 401) {
+        window.location.href = "/login";
+        return Promise.reject("Unauthorized");
+    }
+    if (!response.ok) {
+        window.alert(`錯誤：${response.status} ${response.statusText}`);
+        return Promise.reject(`Error: ${response.status}`);
+    }
+    return response.json();
+}
+
 function add_end(initial) {
     if (waiting) {
         waiting = false;
         fetch(`/api/index?begin=${end + 1}&count=${step}`)
-            .then(response => {
-                if (response.status === 401) {
-                    window.location.href = "/login";
-                    return Promise.reject("Unauthorized");
-                }
-                if (!response.ok) {
-                    window.alert(`錯誤：${response.status} ${response.statusText}`);
-                    return Promise.reject(`Error: ${response.status}`);
-                }
-                return response.json();
-            })
+            .then(resolve_response)
             .then(data => {
-                let HEIGHT = Math.floor(document.body.clientWidth / (mobile ? 3 : 6)) + "px";
-                // localStorage.setItem("index_offset", end);
                 total = data["total"];
                 for (let o of data["books"]) {
                     let e = create_gallery(o);
                     let img = e.querySelector("img");
                     e.dataset.pos = end;
-                    img.style.height = HEIGHT;
                     auto_retry(img);
                     watcher.observe(img);
                     watcher2.observe(e);
@@ -157,21 +156,11 @@ function add_start(end_pos) {
     if (waiting_up && end_pos > 0) {
         waiting_up = false;
         let begin = Math.max(0, end_pos - step);
+        const oldScrollHeight = document.documentElement.scrollHeight;
+        const oldScrollTop = window.scrollY;
         fetch(`/api/index?begin=${begin + 1}&count=${end_pos - begin}`)
-            .then(response => {
-                if (response.status === 401) {
-                    window.location.href = "/login";
-                    return Promise.reject("Unauthorized");
-                }
-                if (!response.ok) {
-                    window.alert(`錯誤：${response.status} ${response.statusText}`);
-                    return Promise.reject(`Error: ${response.status}`);
-                }
-                return response.json();
-            })
+            .then(resolve_response)
             .then(data => {
-                let HEIGHT = Math.floor(document.body.clientWidth / (mobile ? 3 : 6)) + "px";
-                let old_begin = document.querySelector(".gallery");
                 let pos = end_pos - 1;
                 total = data["total"];
                 for (let i = data["books"].length - 1; i >= 0; i--) {
@@ -179,7 +168,6 @@ function add_start(end_pos) {
                     let e = create_gallery(o);
                     let img = e.querySelector("img");
                     e.dataset.pos = pos;
-                    img.style.height = HEIGHT;
                     auto_retry(img);
                     watcher.observe(img);
                     watcher2.observe(e);
@@ -187,11 +175,13 @@ function add_start(end_pos) {
                     pos--;
                 }
                 up_index = begin;
-                window.scrollTo(0, old_begin.offsetTop);
-                if (begin > 0) {
-                    waiting_up = true;
-                }
-                // localStorage.setItem("index_offset", begin);
+                let dh = Math.floor(document.body.clientWidth / small_step * 1.5) * Math.floor(data["books"].length / small_step);
+                window.setTimeout(() => {
+                    window.scrollTo(0, oldScrollTop + dh);
+                    if (begin > 0) {
+                        waiting_up = true;
+                    }
+                },10);
             })
             .catch(err => {
                 if (err !== "Unauthorized") {
@@ -212,26 +202,26 @@ function onEnterView(entries, observer) {
             const img = entry.target;
             img.setAttribute('src', img.dataset.src);
             img.removeAttribute('data-src');
-            img.removeAttribute('style');
+            //img.removeAttribute('style');
             observer.unobserve(img);
             if (img === last_img) add_end();
         }
     }
 }
-let intersecting_pos = new Set();
+let intersecting_pos = new Map();
 function onEnterView2(entries, observer) {
     for (let entry of entries) {
         const e = entry.target;
         let pos = +e.dataset.pos;
         if (entry.isIntersecting) {
-            intersecting_pos.add(pos);
+            intersecting_pos.set(pos, entry.boundingClientRect.top);
         }else{
             intersecting_pos.delete(pos);
         }
     }
     if (intersecting_pos.size === 0) return;
     let mi = Math.min(...intersecting_pos);
-    let val = mi - mi%6;
+    let val = mi - mi%small_step;
     localStorage.setItem("index_offset", ""+val);
 }
 
@@ -242,7 +232,7 @@ function onScroll() {
     if (up_index > 0 && pos < 10 && init_scroll) {
         add_start(up_index);
     }
-    if (!init_scroll && pos > 50) {
+    if (!init_scroll && pos > 200) {
         init_scroll = true;
     }
 }
