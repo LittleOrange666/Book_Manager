@@ -188,9 +188,9 @@ unknown	Unknown status
 
 stalled_cnt: dict[str, int] = defaultdict(int)
 total_stalled_cnt: dict[str, int] = defaultdict(int)
-BREAK_THRESHOLD = 15
-FORCE_THRESHOLD = 300
-FAILED_DECREASE = 20
+BREAK_THRESHOLD = 5
+FORCE_THRESHOLD = 100
+FAILED_DECREASE = 10
 
 
 def scan_torrents(dbsession: Session):

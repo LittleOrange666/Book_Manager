@@ -9,7 +9,7 @@ from modules import server, datas, constants, route, api, downloader, login
 
 app = server.app
 
-do_clean = False
+do_clean = os.getenv("CLEAN_UNCOMPLETED", "false").lower() == "true"
 
 
 class StandaloneApplication(BaseApplication):
@@ -60,15 +60,15 @@ def main():
                         logger.error(f"Error deleting uncompleted torrent for {bad.title} - {bad.uid}: {e}")
                 logger.info(f"Removing uncompleted book record: {bad.title} - {bad.uid}")
                 datas.db.session.delete(bad)
-            others = datas.Book.query.filter_by(completed=True).all()
-            for item in others:
-                path = constants.book_path / item.dirname
-                if not path.exists() or not path.is_dir():
-                    logger.info(f"Removing missing book record: {item.title} - {item.uid}")
-                    datas.db.session.delete(item)
             for last in downloader.qbt_client.torrents.info.all():
                 last.delete()
-            datas.db.session.commit()
+        others = datas.Book.query.filter_by(completed=True).all()
+        for item in others:
+            path = constants.book_path / item.dirname
+            if not path.exists() or not path.is_dir():
+                logger.info(f"Removing missing book record: {item.title} - {item.uid}")
+                datas.db.session.delete(item)
+        datas.db.session.commit()
     threading.Thread(target=downloader.background_worker, daemon=True).start()
     port = os.environ.get('SERVER_PORT', '5000')
     options = {
