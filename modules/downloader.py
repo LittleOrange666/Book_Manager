@@ -54,15 +54,18 @@ def resolve(dbsession, uid):
     info.completed = True
     path = constants.book_path / info.dirname
     if path.exists() and path.is_dir():
-        inner_dir = list(path.iterdir())[0]
+        inner_dirs = list(path.iterdir())
+        inner_dir = inner_dirs[0]
+        if (path / "TMP_DIR").exists():
+            inner_dir = path / "TMP_DIR"
         for f in inner_dir.iterdir():
             shutil.move(str(f), str(path / f.name))
-        inner_dir.rmdir()
         files = [f for f in path.iterdir() if f.suffix[1:].lower() in constants.exts]
         files.sort(key=lambda x: x.stem)
         if files:
             icon_file = files[0].name
             convert_to_ico(path / icon_file, path / "icon.ico")
+        inner_dir.rmdir()
     logger.info(f"Complete downloading {info.title} - {uid}")
     dbsession.add(info)
 
@@ -138,10 +141,14 @@ def download_file(link: str, method: Literal["two_step","direct"]) -> bytes | No
 
 def save_to(content: bytes, file_format: Literal["zip"], target: str) -> bool:
     if file_format == "zip":
-        with io.BytesIO(content) as buffer:
-            with ZipFile(buffer) as zip_file:
-                os.makedirs(target, exist_ok=True)
-                zip_file.extractall(target)
+        try:
+            with io.BytesIO(content) as buffer:
+                with ZipFile(buffer) as zip_file:
+                    os.makedirs(target, exist_ok=True)
+                    zip_file.extractall(target)
+        except Exception as e:
+            logger.exception(f"Error extracting zip file: {e}")
+            return False
         return True
     else:
         logger.error(f"Unsupported file format {file_format} for saving to {target}")
@@ -157,10 +164,10 @@ def force_download(book: datas.Book, dbsession) -> bool:
     if file_content is None:
         return False
     logger.info(f"Successfully downloaded file for {book.title} - {book.uid} from {link}. Saving to disk.")
-    if not save_to(file_content, file_format, str(constants.inner_book_path / book.dirname / "TMP_DIR")):
+    if not save_to(file_content, file_format, str(constants.book_path / book.dirname / "TMP_DIR")):
         return False
     resolve(dbsession, book.uid)
-    return False
+    return True
 
 """
 Value	Description
@@ -188,9 +195,7 @@ unknown	Unknown status
 
 stalled_cnt: dict[str, int] = defaultdict(int)
 total_stalled_cnt: dict[str, int] = defaultdict(int)
-BREAK_THRESHOLD = 5
-FORCE_THRESHOLD = 100
-FAILED_DECREASE = 10
+BREAK_THRESHOLD = 15
 
 
 def scan_torrents(dbsession: Session):
@@ -222,36 +227,36 @@ def scan_torrents(dbsession: Session):
                 del stalled_cnt[h]
         except Exception as e:
             logger.exception(f"Error checking torrent status for {book.title} - {book.uid}: {e}")
+    upd = False
     if not uids:
         if has_queued and max(stalled_cnt.values(),default=0) >= BREAK_THRESHOLD:
             t = max(stalled_cnt.items(), key=lambda x: x[1])
-            logger.warning(f"Detected stalled torrents with hash {t[0]} for {t[1]} consecutive checks. Move it to the bottom of queue")
-            try:
-                qbt_client.torrents_bottom_priority(torrent_hashes=t[0])
-            except Exception as e:
-                logger.exception(f"Error moving stalled torrent with hash {t[0]} to bottom of queue: {e}")
-            stalled_cnt.clear()
-        elif max(total_stalled_cnt.values(),default=0) >= FORCE_THRESHOLD:
-            t = max(total_stalled_cnt.items(), key=lambda x: x[1])
-            logger.info(f"Detected stalled torrents with hash {t[0]} for {t[1]} consecutive checks. Try force download.")
+            logger.warning(f"Detected stalled torrents with hash {t[0]} for {t[1]} consecutive checks. Try force download.")
+            suc = False
             try:
                 res = force_download(dbsession.query(datas.Book).filter_by(torrent_hash=t[0]).first(), dbsession)
                 if res:
                     logger.info(f"Force download succeeded for torrent with hash {t[0]}.")
-                    del total_stalled_cnt[t[0]]
+                    suc = True
+                    upd = True
                 else:
                     logger.warning(f"Force download failed for torrent with hash {t[0]}. Will try again later.")
-                    total_stalled_cnt[t[0]] -= FAILED_DECREASE
             except Exception as e:
                 logger.exception(f"Error force downloading torrent with hash {t[0]}: {e}")
-                total_stalled_cnt[t[0]] -= FAILED_DECREASE
+            if not suc:
+                logger.info(f"Moving stalled torrent with hash {t[0]} to bottom of queue.")
+                try:
+                    qbt_client.torrents_bottom_priority(torrent_hashes=t[0])
+                except Exception as e:
+                    logger.exception(f"Error moving stalled torrent with hash {t[0]} to bottom of queue: {e}")
+            stalled_cnt.clear()
     for uid in uids:
         cnt -= 1
         resolve(dbsession, uid)
     for uid in rms:
         cnt -= 1
         dbsession.delete(dbsession.query(datas.Book).filter_by(uid=uid).first())
-    if uids:
+    if uids or upd or rms:
         if cnt > 0:
             logger.info(f"{cnt} downloads remaining.")
         else:
