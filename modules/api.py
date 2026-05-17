@@ -207,12 +207,18 @@ class BookIndex(Resource):
         if not book:
             return {"message": "Book not found"}, 404
         path = constants.book_path / book.dirname
-        fns = [f.name for f in path.iterdir() if f.suffix[1:].lower() in constants.exts]
+        fns = [f for f in path.iterdir() if f.suffix[1:].lower() in constants.exts]
+        try:
+            fns.sort(key=lambda x: int(x.stem))
+        except ValueError:
+            res_fns = [f.name for f in path.iterdir() if f.suffix[1:].lower() in constants.exts]
+        else:
+            res_fns = [f.name for f in fns]
         return {
             "title": book.title,
             "source": book.source,
             "dirname": book.dirname,
-            "files": fns
+            "files": res_fns
         }, 200
 
     @api.doc("remove_book")
