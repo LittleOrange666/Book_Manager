@@ -214,13 +214,17 @@ function onEnterView2(entries, observer) {
         const e = entry.target;
         let pos = +e.dataset.pos;
         if (entry.isIntersecting) {
-            intersecting_pos.set(pos, entry.boundingClientRect.top);
+            intersecting_pos.set(pos, e);
         }else{
             intersecting_pos.delete(pos);
         }
     }
     if (intersecting_pos.size === 0) return;
-    let mi = Math.min(...intersecting_pos);
+    let all = [];
+    for (let [k,v] of intersecting_pos.entries()) {
+        if (v.getBoundingClientRect().top>=0) all.push(k);
+    }
+    let mi = Math.min(...all);
     let val = mi - mi%small_step;
     localStorage.setItem("index_offset", ""+val);
 }
