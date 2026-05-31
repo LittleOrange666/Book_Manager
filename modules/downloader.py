@@ -253,6 +253,13 @@ def scan_torrents(dbsession: Session):
     for uid in uids:
         cnt -= 1
         resolve(dbsession, uid)
+    for torrent in qbt_client.torrents_info(status_filter="errored"):
+        logger.warning(f"Detected errored torrent with hash {torrent.hash}. Marking as deleted.")
+        torrent.delete()
+        book = dbsession.query(datas.Book).filter_by(torrent_hash=torrent.hash).first()
+        if book:
+            logger.warning(f"Found book record for errored torrent {book.title} - {book.uid}. Marking as removed.")
+            rms.append(book.uid)
     for uid in rms:
         cnt -= 1
         dbsession.delete(dbsession.query(datas.Book).filter_by(uid=uid).first())
