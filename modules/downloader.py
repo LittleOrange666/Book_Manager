@@ -239,6 +239,10 @@ def scan_torrents(dbsession: Session):
                     logger.info(f"Force download succeeded for torrent with hash {t[0]}.")
                     suc = True
                     upd = True
+                    torrents = qbt_client.torrents_info(hashes=t[0])
+                    if torrents:
+                        torrents[0].delete()
+                        logger.info(f"Deleted stalled torrent with hash {t[0]} after successful force download.")
                 else:
                     logger.warning(f"Force download failed for torrent with hash {t[0]}. Will try again later.")
             except Exception as e:
