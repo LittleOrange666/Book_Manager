@@ -75,7 +75,7 @@ def do_download(download: datas.Download, dbsession) -> bool:
         logger.info(f"Using environment variable for download auth.")
         auth = os.getenv("DOWNLOAD_AUTH")
     try:
-        res = requests.post(download.link, headers={"Authorization": auth})
+        res = requests.post(download.link, headers={"Authorization": auth}, timeout=30)
         if res.status_code != 200:
             logger.info(f"Failed to download torrent info for {download.title} - {download.uid}: HTTP {res.status_code}")
             return False
@@ -85,7 +85,7 @@ def do_download(download: datas.Download, dbsession) -> bool:
     dat = res.json()
     url1 = dat["url"]
     try:
-        res2 = requests.get(url1)
+        res2 = requests.get(url1, timeout=30)
         if res2.status_code != 200:
             logger.info(f"Failed to download torrent file for {download.title} - {download.uid}: HTTP {res2.status_code}")
             return False
@@ -109,7 +109,7 @@ def download_file(link: str, method: Literal["two_step","direct"]) -> bytes | No
         headers["Authorization"] = os.getenv("DOWNLOAD_AUTH")
     if method == "direct":
         try:
-            res = requests.get(link,headers=headers)
+            res = requests.get(link,headers=headers, timeout=30)
             if res.status_code != 200:
                 logger.info(f"Failed to download file from {link}: HTTP {res.status_code}")
                 return None
@@ -119,7 +119,7 @@ def download_file(link: str, method: Literal["two_step","direct"]) -> bytes | No
             return None
     elif method == "two_step":
         try:
-            res = requests.post(link,headers=headers)
+            res = requests.post(link,headers=headers, timeout=30)
             if res.status_code != 200:
                 logger.info(f"Failed to download file info from {link}: HTTP {res.status_code}")
                 return None
@@ -129,7 +129,7 @@ def download_file(link: str, method: Literal["two_step","direct"]) -> bytes | No
         try:
             dat = res.json()
             url1 = dat["url"]
-            res2 = requests.get(url1,headers=headers)
+            res2 = requests.get(url1,headers=headers, timeout=30)
             if res2.status_code != 200:
                 logger.info(f"Failed to download file info from {url1}: HTTP {res2.status_code}")
                 return None
@@ -197,14 +197,28 @@ stalled_cnt: dict[str, int] = defaultdict(int)
 total_stalled_cnt: dict[str, int] = defaultdict(int)
 BREAK_THRESHOLD = 15
 
+def init_clean(dbsession: Session):
+    hs = []
+    for book in dbsession.query(datas.Book).filter_by(completed=False).all():
+        h = book.torrent_hash.lower()
+        hs.append(h)
+    hss = set(hs)
+    for torrent in qbt_client.torrents_info():
+        h = torrent._torrent_hash.lower()
+        if h not in hss:
+            logger.info(f"Found untracked torrent with hash {h}. Deleting.")
+            torrent.delete()
+
 
 def scan_torrents(dbsession: Session):
     uids = []
     cnt = 0
     has_queued = False
     rms = []
+    hs = []
     for book in dbsession.query(datas.Book).filter_by(completed=False).all():
         h = book.torrent_hash
+        hs.append(h.lower())
         cnt += 1
         try:
             torrents = qbt_client.torrents_info(hashes=h)
@@ -254,6 +268,13 @@ def scan_torrents(dbsession: Session):
                 except Exception as e:
                     logger.exception(f"Error moving stalled torrent with hash {t[0]} to bottom of queue: {e}")
             stalled_cnt.clear()
+        else:
+            hss = set(hs)
+            for torrent in qbt_client.torrents_info():
+                h = torrent._torrent_hash.lower()
+                if h not in hss:
+                    logger.info(f"Found untracked torrent with hash {h}. Deleting.")
+                    torrent.delete()
     for uid in uids:
         cnt -= 1
         resolve(dbsession, uid)
@@ -305,6 +326,11 @@ def scan_downloads(dbsession: Session):
 
 def background_worker():
     with server.app.app_context():
+        try:
+            with datas.SessionContext() as dbsession:
+                init_clean(dbsession)
+        except Exception as e:
+            logger.exception(f"Error init clean: {e}")
         while True:
             try:
                 with datas.SessionContext() as dbsession:
