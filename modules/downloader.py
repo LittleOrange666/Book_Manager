@@ -194,7 +194,6 @@ unknown	Unknown status
 
 
 stalled_cnt: dict[str, int] = defaultdict(int)
-total_stalled_cnt: dict[str, int] = defaultdict(int)
 BREAK_THRESHOLD = 15
 
 def init_clean(dbsession: Session):
@@ -230,20 +229,17 @@ def scan_torrents(dbsession: Session):
             if torrent.state_enum.is_uploading:
                 torrent.delete()
                 uids.append(book.uid)
-                if h in total_stalled_cnt:
-                    del total_stalled_cnt[h]
             elif torrent.state_enum is TorrentState.QUEUED_DOWNLOAD:
                 has_queued = True
             if torrent.state_enum is TorrentState.STALLED_DOWNLOAD:
                 stalled_cnt[h] += 1
-                total_stalled_cnt[h] += 1
             elif h in stalled_cnt:
                 del stalled_cnt[h]
         except Exception as e:
             logger.exception(f"Error checking torrent status for {book.title} - {book.uid}: {e}")
     upd = False
     if not uids:
-        if has_queued and max(stalled_cnt.values(),default=0) >= BREAK_THRESHOLD:
+        if max(stalled_cnt.values(),default=0) >= BREAK_THRESHOLD:
             t = max(stalled_cnt.items(), key=lambda x: x[1])
             logger.warning(f"Detected stalled torrents with hash {t[0]} for {t[1]} consecutive checks. Try force download.")
             suc = False
@@ -261,7 +257,7 @@ def scan_torrents(dbsession: Session):
                     logger.warning(f"Force download failed for torrent with hash {t[0]}. Will try again later.")
             except Exception as e:
                 logger.exception(f"Error force downloading torrent with hash {t[0]}: {e}")
-            if not suc:
+            if not suc and has_queued:
                 logger.info(f"Moving stalled torrent with hash {t[0]} to bottom of queue.")
                 try:
                     qbt_client.torrents_bottom_priority(torrent_hashes=t[0])
