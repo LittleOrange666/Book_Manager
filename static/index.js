@@ -17,11 +17,21 @@ let up_index = offset;
 let can_load = false;
 let pending_add_end = false;
 let pending_add_start = 0;
-setTimeout(() => {
+
+function reset_cooldown() {
     can_load = true;
-    //if (pending_add_end) add_end();
-    //if (pending_add_start > 0) add_start(pending_add_start);
-}, 1000);
+    return;
+    if (pending_add_start > 0) {
+        let p = pending_add_start;
+        pending_add_start = 0;
+        add_start(p);
+    } else if (pending_add_end) {
+        pending_add_end = false;
+        add_end();
+    }
+}
+
+setTimeout(reset_cooldown, 1000);
 const menu_element = document.getElementById('custom-menu');
 let target_source = "#";
 let target_uid = "";
@@ -144,6 +154,10 @@ function add_end(initial) {
     }
     if (waiting) {
         waiting = false;
+        if (!initial) {
+            can_load = false;
+            setTimeout(reset_cooldown, 1000);
+        }
         fetch(`/api/index?begin=${end + 1}&count=${step}`)
             .then(resolve_response)
             .then(data => {
@@ -182,6 +196,8 @@ function add_start(end_pos) {
     }
     if (waiting_up && end_pos > 0) {
         waiting_up = false;
+        can_load = false;
+        setTimeout(reset_cooldown, 1000);
         let begin = Math.max(0, end_pos - step);
         const oldScrollHeight = document.documentElement.scrollHeight;
         const oldScrollTop = window.scrollY;
