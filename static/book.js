@@ -175,5 +175,9 @@ fetch("/api/book?uid=" + book_uid)
         alert("Error: " + error);
     });
 $("#home-link").click(function () {
-    window.history.back();
+    location.replace("/");
+});
+history.pushState(null, null, window.location.pathname);
+window.addEventListener('popstate', () => {
+    location.assign("/");
 });
