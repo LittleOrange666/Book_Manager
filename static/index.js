@@ -14,6 +14,14 @@ let end = offset;
 const watcher = new IntersectionObserver(onEnterView);
 const watcher2 = new IntersectionObserver(onEnterView2);
 let up_index = offset;
+let can_load = false;
+let pending_add_end = false;
+let pending_add_start = 0;
+setTimeout(() => {
+    can_load = true;
+    //if (pending_add_end) add_end();
+    //if (pending_add_start > 0) add_start(pending_add_start);
+}, 1000);
 const menu_element = document.getElementById('custom-menu');
 let target_source = "#";
 let target_uid = "";
@@ -92,6 +100,13 @@ function create_gallery(o) {
 
     const a = document.createElement('a');
     a.href = '/books/' + o['uid'];
+    a.addEventListener('click', () => {
+        let pos = +div.dataset.pos;
+        if (!isNaN(pos)) {
+            let val = Math.max(0, pos - (pos % small_step) - small_step);
+            localStorage.setItem("index_offset", "" + val);
+        }
+    });
 
     const innerDiv = document.createElement('div');
     const img = document.createElement('img');
@@ -123,6 +138,10 @@ function resolve_response(response){
 }
 
 function add_end(initial) {
+    if (!initial && !can_load) {
+        pending_add_end = true;
+        return;
+    }
     if (waiting) {
         waiting = false;
         fetch(`/api/index?begin=${end + 1}&count=${step}`)
@@ -157,6 +176,10 @@ function add_end(initial) {
 }
 
 function add_start(end_pos) {
+    if (!can_load) {
+        pending_add_start = end_pos;
+        return;
+    }
     if (waiting_up && end_pos > 0) {
         waiting_up = false;
         let begin = Math.max(0, end_pos - step);
