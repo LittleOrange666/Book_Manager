@@ -1,3 +1,7 @@
+if ('scrollRestoration' in history) {
+    history.scrollRestoration = 'manual';
+}
+
 let mobile = isMobileDevice();
 let gallery_width = mobile ? "33%" : "16.2%";
 const step = 96;
@@ -163,6 +167,7 @@ function add_start(end_pos) {
             .then(data => {
                 let pos = end_pos - 1;
                 total = data["total"];
+                let frag = document.createDocumentFragment();
                 for (let i = data["books"].length - 1; i >= 0; i--) {
                     let o = data["books"][i];
                     let e = create_gallery(o);
@@ -171,17 +176,19 @@ function add_start(end_pos) {
                     auto_retry(img);
                     watcher.observe(img);
                     watcher2.observe(e);
-                    document.getElementById("main_area").prepend(e);
+                    frag.prepend(e);
                     pos--;
                 }
+                document.getElementById("main_area").prepend(frag);
                 up_index = begin;
-                let dh = Math.floor(document.body.clientWidth / small_step * 1.5) * Math.floor(data["books"].length / small_step);
-                window.setTimeout(() => {
-                    window.scrollTo(0, oldScrollTop + dh);
-                    if (begin > 0) {
-                        waiting_up = true;
-                    }
-                },10);
+                
+                const newScrollHeight = document.documentElement.scrollHeight;
+                const realDh = newScrollHeight - oldScrollHeight;
+                window.scrollTo(0, oldScrollTop + realDh);
+                
+                if (begin > 0) {
+                    waiting_up = true;
+                }
             })
             .catch(err => {
                 if (err !== "Unauthorized") {

@@ -23,7 +23,7 @@ function register_menu(menu_element, before_open) {
     function showMenu(x, y, e) {
         before_open(e);
         menu_element.style.left = `${x}px`;
-        menu_element.style.top = `${y}px`;
+        menu_element.style.top = `${y + 15}px`;
         menu_element.style.display = 'block';
     }
 
@@ -43,6 +43,15 @@ function register_menu(menu_element, before_open) {
         let touchTimer;
         let longPressTriggered = false;
         let startX, startY;
+
+        target.addEventListener('click', e => {
+            if (longPressTriggered) {
+                e.preventDefault();
+                e.stopPropagation();
+                longPressTriggered = false; // Reset after handling
+            }
+        });
+
         target.addEventListener('touchstart', e => {
             longPressTriggered = false;
             startX = e.touches[0].pageX;
