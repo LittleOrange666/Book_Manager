@@ -29,6 +29,14 @@ def image(dirname, filename):
         return "", 404
 
 
+@app.route('/sw.js')
+def service_worker():
+    from flask import send_from_directory
+    response = send_from_directory(app.static_folder, 'sw.js')
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return response
+
+
 @app.route('/')
 def index_page():
     return render_template('index.html')

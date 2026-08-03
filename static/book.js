@@ -13,7 +13,7 @@ function main(data) {
     document.getElementById("custom-menu-action2").addEventListener('click', () => {
         location.reload();
     });
-    const [bind_element,hideMenu] = register_menu(menu_element, before_open);
+    const [bind_element, hideMenu] = register_menu(menu_element, before_open);
     bind_element(document.querySelector("#main_area"));
 
     if (!mobile) {
@@ -35,8 +35,12 @@ function main(data) {
     } else if (isRunningStandalone()) {
         document.querySelector("#bottom_area").style.paddingBottom = "30px";
     }
+
+    var $body = (window.opera) ? (document.compatMode == "CSS1Compat" ? $('html') : $('body')) : $('html,body');
+
     $('#BackTop').click(function () {
         $body.scrollTop(0);
+        window.scrollTo(0, 0);
     });
     $(window).scroll(function () {
         if ($(this).scrollTop() > 300) {
@@ -45,16 +49,20 @@ function main(data) {
             $('#BackTop').stop().fadeOut(222);
         }
     }).scroll();
-    var hash = location.hash;
+
+    let book_uid = location.pathname.split("/").pop();
+    let initial_hash = location.hash ? location.hash.substring(1) : "";
+    let saved_pos = localStorage.getItem("book_pos_" + book_uid) || "";
+    let target_id = initial_hash || saved_pos;
+
     let page_cnt = document.querySelectorAll('img').length;
     $("#page").text("0".repeat(Math.floor(Math.log10(page_cnt))) + "1/" + page_cnt);
-    if (hash) update_page();
 
     function update_page() {
-        let s = location.hash;
-        if (s) {
-            s = s.substr(1, s.indexOf("_") - 1);
-            $("#page").text(s + "/" + page_cnt);
+        let id = cur ? cur.id : (location.hash ? location.hash.substring(1) : "");
+        if (id && id.includes("_")) {
+            let pageStr = id.substring(0, id.indexOf("_"));
+            $("#page").text(pageStr + "/" + page_cnt);
         }
     }
 
@@ -65,6 +73,7 @@ function main(data) {
             if (entry.isIntersecting && entry.intersectionRatio > 0.3) {
                 cur = entry.target;
                 history.replaceState({}, "", "#" + entry.target.id);
+                localStorage.setItem("book_pos_" + book_uid, entry.target.id);
                 update_page();
                 return;
             }
@@ -74,77 +83,110 @@ function main(data) {
     const watcher = new IntersectionObserver(onEnterView, {
         threshold: [0.0, 0.25, 0.5, 0.75, 1.0],
     });
+
+    function scrollToElement(el) {
+        if (!el) return;
+        requestAnimationFrame(() => {
+            const targetTop = $(el).offset().top;
+            $body.scrollTop(targetTop);
+            window.scrollTo(0, targetTop);
+        });
+    }
+
     var q = [];
 
     function action() {
+        if (q.length === 0) {
+            $("#loading").css("display", "none");
+            return;
+        }
+
         let img = q.shift();
+        let stepDone = false;
 
-        let is_error = false;
+        function cur_step() {
+            if (stepDone) return;
+            stepDone = true;
 
-        function cur() {
-            is_error = false;
-            let w = Math.floor(1000 * (page_cnt - q.length) / page_cnt);
-            $("#loading").text("Loading..." + (Math.floor(w / 10)) + "." + (w % 10) + "%")
-            if (hash && ("#" + img.id) == hash) {
-                var target_top = $(hash).offset().top;
-                $body.scrollTop(target_top);
-                hash = null;
+            let loaded_cnt = page_cnt - q.length;
+            let w = Math.floor(1000 * loaded_cnt / page_cnt);
+            $("#loading").text("Loading..." + (Math.floor(w / 10)) + "." + (w % 10) + "%");
+
+            if (target_id && img.id === target_id) {
+                scrollToElement(img);
+                target_id = null;
             }
+
             if (q.length) {
-                window.setTimeout(function () {
-                    action();
-                }, 1);
+                window.setTimeout(action, 1);
             } else {
                 $("#loading").css("display", "none");
             }
-            window.setTimeout(function () {
+
+            window.setTimeout(() => {
                 watcher.observe(img);
             }, 1);
         }
 
-        img.addEventListener('load', cur);
+        img.addEventListener('load', () => {
+            if (target_id && img.id === target_id) {
+                scrollToElement(img);
+                target_id = null;
+            }
+            cur_step();
+        });
+
+        // Ensure errors move the queue forward so remaining images can load
+        img.addEventListener('error', cur_step);
+
         auto_retry(img);
         img.setAttribute('src', img.dataset.src);
-        if (img.complete) cur();
+
+        if (img.complete) {
+            cur_step();
+        }
     }
 
     function add(o) {
         q.push(o);
-        if (q.length == 1) window.setTimeout(function () {
-            action();
-        }, 1);
+        if (q.length === 1) {
+            window.setTimeout(action, 1);
+        }
     }
 
     for (let o of document.querySelectorAll('.img')) add(o);
-    var $body = (window.opera) ? (document.compatMode == "CSS1Compat" ? $('html') : $('body')) : $('html,body');
-    var lock = false;
-    $body.keypress(function (event) {
-        event.preventDefault();
-        lock = true;
+
+    $(document).on('keydown', function (event) {
         let code = event.code;
         if (cur) {
             if (code === "Space" || code === "ArrowRight" || code === "ArrowDown" || code === "PageDown" || code === "KeyS" || code === "KeyD") {
-                let t = $(cur).next();
+                event.preventDefault();
+                let t = $(cur).next('.img');
                 if (t[0]) {
                     cur = t[0];
                     history.replaceState({}, "", "#" + cur.id);
-                    var target_top = t.offset().top;
-                    $body.scrollTop(target_top);
+                    localStorage.setItem("book_pos_" + book_uid, cur.id);
+                    update_page();
+                    scrollToElement(cur);
                 }
             }
             if (code === "ArrowLeft" || code === "ArrowUp" || code === "PageUp" || code === "KeyW" || code === "KeyA") {
-                let t = $(cur).prev();
+                event.preventDefault();
+                let t = $(cur).prev('.img');
                 if (t[0]) {
                     cur = t[0];
                     history.replaceState({}, "", "#" + cur.id);
-                    var target_top = t.offset().top;
-                    $body.scrollTop(target_top);
+                    localStorage.setItem("book_pos_" + book_uid, cur.id);
+                    update_page();
+                    scrollToElement(cur);
                 }
             }
         }
-        return false;
     });
-    update_page();
+
+    if (target_id) {
+        update_page();
+    }
 }
 
 let book_uid = location.pathname.split("/").pop();
@@ -174,10 +216,7 @@ fetch("/api/book?uid=" + book_uid)
     .catch(error => {
         alert("Error: " + error);
     });
+
 $("#home-link").click(function () {
     location.replace("/");
-});
-history.pushState(null, null, window.location.pathname);
-window.addEventListener('popstate', () => {
-    location.assign("/");
 });

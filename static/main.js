@@ -15,7 +15,10 @@ function isRunningStandalone() {
 
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js')
-        .then(() => console.log('Service Worker registered'))
+        .then((reg) => {
+            console.log('Service Worker registered');
+            reg.update();
+        })
         .catch(err => console.error('SW registration failed', err));
 }
 
@@ -82,33 +85,49 @@ function register_menu(menu_element, before_open) {
     return [bind_element, hideMenu];
 }
 
-function auto_retry(img){
-    function handler(){
+function auto_retry(img) {
+    let completed = false;
+
+    function handler() {
+        if (completed) return;
         const maxRetries = 3;
         let retries = parseInt(img.dataset.retries || '0', 10);
         if (retries < maxRetries) {
             retries += 1;
             img.dataset.retries = retries;
             window.setTimeout(() => {
-                const separator = img.src.includes('?') ? '&' : '?';
-                img.src = img.src.split('?')[0] + `${separator}t=${new Date().getTime()}`;
-            },1500);
+                if (completed) return;
+                const srcBase = img.dataset.src || (img.src ? img.src.split('?')[0] : '');
+                if (!srcBase) return;
+                const separator = srcBase.includes('?') ? '&' : '?';
+                img.src = srcBase + `${separator}t=${Date.now()}`;
+            }, 1500);
         } else {
-            img.removeEventListener('error', handler);
+            img.classList.add('img-error');
+            img.alt = "Failed to load. Click to retry.";
+            img.title = "Click to retry loading";
         }
     }
-    let completed = img.complete;
-    if(completed) return;
+
     img.addEventListener('error', handler);
-    img.addEventListener('load', ()=>{
-        img.removeEventListener('error', handler);
-        completed = true;
+
+    img.addEventListener('load', () => {
+        if (img.naturalWidth > 0) {
+            completed = true;
+            img.classList.remove('img-error');
+            img.removeAttribute('title');
+        }
     });
-    img.addEventListener("click", function (){
-        if (!(completed || img.complete)){
+
+    img.addEventListener("click", function () {
+        if (!completed || img.naturalWidth === 0) {
+            completed = false;
             img.dataset.retries = '0';
-            img.addEventListener('error', handler);
-            handler();
+            img.classList.remove('img-error');
+            const srcBase = img.dataset.src || (img.src ? img.src.split('?')[0] : '');
+            if (!srcBase) return;
+            const separator = srcBase.includes('?') ? '&' : '?';
+            img.src = srcBase + `${separator}t=${Date.now()}`;
         }
     });
 }
