@@ -1,4 +1,4 @@
-const CACHE_NAME = 'v1.6.0';
+const CACHE_NAME = 'v1.6.1';
 const ASSETS_TO_CACHE = [
   '/',
   '/book.css',
@@ -9,6 +9,7 @@ const ASSETS_TO_CACHE = [
   '/index.js',
   '/jquery-3.7.0.min.js',
   '/login.js',
+  '/main.css',
   '/main.js',
   '/manifest.json',
   '/robots.txt',
