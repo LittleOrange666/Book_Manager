@@ -19,10 +19,13 @@ let can_load = false;
 let pending_add_end = false;
 let pending_add_start = 0;
 
-const download_status_el = document.getElementById('download-status');
-let status_poll_timer = null;
-let last_status_check = 0;
-let status_check_pending = false;
+var status_poll_timer = null;
+var last_status_check = 0;
+var status_check_pending = false;
+
+function get_download_status_el() {
+    return document.getElementById('download-status');
+}
 
 function reset_cooldown() {
     can_load = true;
@@ -186,8 +189,12 @@ function add_end(initial) {
                     offset = 0;
                     add_end();
                 }
-                if ('downloads' in data && up_index === 0 && window.scrollY < 10) {
-                    update_download_status(data);
+                try {
+                    if ('downloads' in data && up_index === 0 && window.scrollY < 10) {
+                        update_download_status(data);
+                    }
+                } catch (e) {
+                    console.error("Failed to update download status:", e);
                 }
             })
             .catch(err => {
@@ -237,7 +244,11 @@ function add_start(end_pos) {
                 if (begin > 0) {
                     waiting_up = true;
                 } else if (window.scrollY < 10) {
-                    fetch_download_status();
+                    try {
+                        fetch_download_status();
+                    } catch (e) {
+                        console.error("Failed to fetch download status:", e);
+                    }
                 }
             })
             .catch(err => {
@@ -285,6 +296,7 @@ function onEnterView2(entries, observer) {
 }
 
 function update_download_status(data) {
+    var download_status_el = get_download_status_el();
     if (!download_status_el || !data) return;
     const downloads = data["downloads"] || 0;
     const download_infos = data["download_infos"] || 0;
@@ -358,8 +370,9 @@ function stop_status_poll() {
     }
 }
 
-if (download_status_el) {
-    download_status_el.addEventListener('click', () => {
+var initial_status_el = get_download_status_el();
+if (initial_status_el) {
+    initial_status_el.addEventListener('click', () => {
         fetch_download_status(true);
     });
 }
