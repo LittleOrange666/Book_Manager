@@ -92,7 +92,14 @@ index_get_output = api.model('BookIndex', {
         'source': fields.String(description="Source of the book")
     })), description="List of books"),
     "length": fields.Integer(description="Number of books returned"),
-    "total": fields.Integer(description="Total number of books")
+    "total": fields.Integer(description="Total number of books"),
+    "downloads": fields.Integer(description="Number of remaining downloads"),
+    "download_infos": fields.Integer(description="Number of remaining download infos")
+})
+
+download_status_output = api.model('DownloadStatus', {
+    'downloads': fields.Integer(description="Number of remaining downloads"),
+    'download_infos': fields.Integer(description="Number of remaining download infos")
 })
 
 login_post_input = reqparse.RequestParser()
@@ -280,6 +287,8 @@ class Index(Resource):
         total = datas.db.session.query(datas.Book).filter_by(completed=True).count()
         books = datas.db.session.query(datas.Book).filter_by(completed=True).order_by(datas.Book.id.desc()).offset(begin - 1).limit(
             count).all()
+        downloads = datas.db.session.query(datas.Book).filter_by(completed=False).count()
+        download_infos = datas.db.session.query(datas.Download).count()
         result = []
         for book in books:
             result.append({
@@ -288,7 +297,27 @@ class Index(Resource):
                 "dirname": book.dirname,
                 "source": book.source
             })
-        return {"books": result, "length": len(result), "total": total}, 200
+        return {
+            "books": result,
+            "length": len(result),
+            "total": total,
+            "downloads": downloads,
+            "download_infos": download_infos
+        }, 200
+
+
+@api.route("/downloads/status")
+class DownloadStatus(Resource):
+    @api.doc("get_download_status")
+    @api.marshal_with(download_status_output)
+    @login_required_api
+    def get(self):
+        downloads = datas.db.session.query(datas.Book).filter_by(completed=False).count()
+        download_infos = datas.db.session.query(datas.Download).count()
+        return {
+            "downloads": downloads,
+            "download_infos": download_infos
+        }, 200
 
 
 @api.route("/login")

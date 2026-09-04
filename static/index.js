@@ -13,10 +13,16 @@ let waiting_up = offset > 0;
 let end = offset;
 const watcher = new IntersectionObserver(onEnterView);
 const watcher2 = new IntersectionObserver(onEnterView2);
+let intersecting_pos = new Map();
 let up_index = offset;
 let can_load = false;
 let pending_add_end = false;
 let pending_add_start = 0;
+
+const download_status_el = document.getElementById('download-status');
+let status_poll_timer = null;
+let last_status_check = 0;
+let status_check_pending = false;
 
 function reset_cooldown() {
     can_load = true;
@@ -180,6 +186,9 @@ function add_end(initial) {
                     offset = 0;
                     add_end();
                 }
+                if ('downloads' in data && up_index === 0 && window.scrollY < 10) {
+                    update_download_status(data);
+                }
             })
             .catch(err => {
                 if (err !== "Unauthorized") {
@@ -227,6 +236,8 @@ function add_start(end_pos) {
                 
                 if (begin > 0) {
                     waiting_up = true;
+                } else if (window.scrollY < 10) {
+                    fetch_download_status();
                 }
             })
             .catch(err => {
@@ -236,8 +247,6 @@ function add_start(end_pos) {
             });
     }
 }
-
-add_end(true);
 
 function onEnterView(entries, observer) {
     const imgs = document.querySelectorAll('img');
@@ -254,7 +263,7 @@ function onEnterView(entries, observer) {
         }
     }
 }
-let intersecting_pos = new Map();
+
 function onEnterView2(entries, observer) {
     for (let entry of entries) {
         const e = entry.target;
@@ -275,6 +284,86 @@ function onEnterView2(entries, observer) {
     localStorage.setItem("index_offset", ""+val);
 }
 
+function update_download_status(data) {
+    if (!download_status_el || !data) return;
+    const downloads = data["downloads"] || 0;
+    const download_infos = data["download_infos"] || 0;
+
+    if (up_index > 0) {
+        download_status_el.style.display = 'none';
+        return;
+    }
+
+    if (downloads > 0 || download_infos > 0) {
+        let parts = [];
+        if (downloads > 0) {
+            parts.push(`<span class="download-status-badge">${downloads}</span> downloads`);
+        }
+        if (download_infos > 0) {
+            parts.push(`<span class="download-status-badge infos">${download_infos}</span> download infos`);
+        }
+        download_status_el.innerHTML = `未完成：${parts.join(', ')}`;
+        download_status_el.title = "點擊以重新整理下載狀態";
+        download_status_el.style.display = 'block';
+        start_status_poll();
+    } else {
+        download_status_el.style.display = 'none';
+        stop_status_poll();
+    }
+}
+
+function fetch_download_status(force = false) {
+    if (status_check_pending) return;
+    let now = Date.now();
+    if (!force && now - last_status_check < 3000) return;
+    last_status_check = now;
+    status_check_pending = true;
+
+    fetch('/api/downloads/status')
+        .then(res => {
+            status_check_pending = false;
+            if (res.status === 401) {
+                window.location.href = "/login";
+                return null;
+            }
+            if (!res.ok) return null;
+            return res.json();
+        })
+        .then(data => {
+            if (data) {
+                update_download_status(data);
+            }
+        })
+        .catch(err => {
+            status_check_pending = false;
+            console.error("Failed to fetch download status:", err);
+        });
+}
+
+function start_status_poll() {
+    if (status_poll_timer) return;
+    status_poll_timer = setInterval(() => {
+        if (up_index === 0 && window.scrollY < 10) {
+            fetch_download_status(true);
+        } else {
+            stop_status_poll();
+        }
+    }, 8000);
+}
+
+function stop_status_poll() {
+    if (status_poll_timer) {
+        clearInterval(status_poll_timer);
+        status_poll_timer = null;
+    }
+}
+
+if (download_status_el) {
+    download_status_el.addEventListener('click', () => {
+        fetch_download_status(true);
+    });
+}
+
 let init_scroll = false;
 
 function onScroll() {
@@ -285,6 +374,16 @@ function onScroll() {
     if (!init_scroll && pos > 200) {
         init_scroll = true;
     }
+    if (up_index === 0 && pos < 10) {
+        fetch_download_status();
+    } else {
+        stop_status_poll();
+    }
 }
 
 window.addEventListener('scroll', onScroll);
+
+add_end(true);
+if (up_index === 0 && window.scrollY < 10) {
+    fetch_download_status();
+}
